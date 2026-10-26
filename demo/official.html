@@ -19,6 +19,8 @@
     enableStreaming: params.get('stream') !== '0',
     allowFileUploads: true,
     ...(params.has('accept') ? { allowedFilesMimeTypes: params.get('accept') } : {}),
+    enableMessageActions: !params.has('noactions'),
+    ...(params.has('disabled') ? { disabled: { value: true } } : {}),
   });
 </script>
 </body>

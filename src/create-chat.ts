@@ -8,8 +8,8 @@
  * send and reset; a real new conversation; French; history without the tool steps; errors
  * that say what to change in n8n; and no style leaking into the page.
  */
-import { AparteClient, AparteConfig, attachConfig, uuid } from '@aparte/core';
-import type { AparteLauncher, AparteLocale, AparteMessage, AparteStreamRunner } from '@aparte/core';
+import { AparteClient, AparteConfig, AparteError, AparteErrorCode, attachConfig, registerSegmentRenderer, uuid } from '@aparte/core';
+import type { AparteLauncher, AparteLocale, AparteMessage, AparteSegment, AparteStreamRunner } from '@aparte/core';
 import { setupMarkedStreamingProvider } from '@aparte/plugin-marked/streaming';
 import { createN8nRunner, loadN8nHistory } from '@aparte/runner-n8n';
 import { N8N_ICONS } from './icons.js';
@@ -75,7 +75,7 @@ export interface ChatOptions {
      * A conversation to show when n8n has none for the session — after the first messages,
      * as n8n's widget shows it. Shown, not sent: n8n's memory does not hold it.
      */
-    messageHistory?: { text: string; sender: 'user' | 'bot' }[];
+    messageHistory?: ChatHistoryMessage[];
     /** Sent with every message, as `metadata` in the trigger's output. */
     metadata?: Record<string, unknown>;
     /** The chrome's words, by language, over the built-in ones. */
@@ -115,7 +115,30 @@ export interface ChatOptions {
     colorScheme?: 'light' | 'dark' | 'auto';
     /** Every request to n8n goes through it: a proxy, a test, a recorded demo. @default the global `fetch` */
     fetch?: typeof fetch;
+    /**
+     * Block the input, as n8n's `disabled`: `true`, or n8n's `{ value }` (a Vue ref), read once
+     * when the widget mounts. `setDisabled()` on the handle changes it later.
+     * @default false
+     */
+    disabled?: boolean | { value: boolean };
+    /**
+     * Two actions on the person's own messages, as n8n's widget has them: send the message
+     * again, with its files, and put its text back in the input.
+     * @default false
+     */
+    enableMessageActions?: boolean;
+    /**
+     * What draws a `messageHistory` entry of `type: 'component'`: the function under its `key`
+     * gets its `arguments` and returns an element or HTML. n8n's widget takes Vue components
+     * here; this one takes functions, which any framework can call into.
+     */
+    messageComponents?: Record<string, (args: Record<string, unknown>) => HTMLElement | string>;
 }
+
+/** A `messageHistory` entry: text, or a component drawn by `messageComponents`. */
+export type ChatHistoryMessage =
+    | { type?: 'text'; text: string; sender: 'user' | 'bot'; transparent?: boolean }
+    | { type: 'component'; key: string; arguments?: Record<string, unknown>; sender: 'user' | 'bot'; transparent?: boolean };
 
 /** The answer `afterMessageSent` receives, shaped like both of `@n8n/chat`'s. */
 export interface ChatResponse {
@@ -149,6 +172,8 @@ export interface Chat {
      * and a new session starts — unless you gave `sessionId`, which is yours to change.
      */
     reset(): void;
+    /** Block the input, or let the person type again. */
+    setDisabled(disabled: boolean): void;
     /** Remove the widget and stop its client. */
     destroy(): void;
     /** The same as `destroy()`, under the name of the Vue app n8n's widget returns. */
@@ -159,7 +184,42 @@ const STORAGE_KEY = 'n8n-chat/sessionId';
 
 type Viewport = HTMLElement & { setMessages(messages: AparteMessage[]): void };
 type ChatElement = HTMLElement & { viewport: Viewport | null };
-type Composer = HTMLElement & { setValue(value: string): void; submit(): void; cancel(): void; readonly streaming: boolean };
+type Composer = HTMLElement & { setValue(value: string): void; submit(): void; cancel(): void; readonly streaming: boolean; readonly value: string };
+
+/** An error the workflow itself reported in its answer: its words are the visitor's to read. */
+const WORKFLOW_ERROR = 'N8N_WORKFLOW_ERROR' as AparteErrorCode;
+
+/** A `messageHistory` component, carried as a segment so the bubble draws it in its place. */
+interface ComponentSegment { id: string; type: 'n8n-component'; key: string; arguments: Record<string, unknown> }
+
+/** The `messageComponents` of each widget, by its chat: the renderer is one for the page. */
+const componentsByChat = new WeakMap<Element, NonNullable<ChatOptions['messageComponents']>>();
+
+let componentRendererRegistered = false;
+function registerComponentRenderer(): void {
+    if (componentRendererRegistered) return;
+    componentRendererRegistered = true;
+    registerSegmentRenderer({
+        type: 'n8n-component',
+        render: (segment) => {
+            const { key, arguments: args } = segment as unknown as ComponentSegment;
+            // The renderer runs for the bubble before it is in place, so the chat is found
+            // when its element is: an empty holder now, filled once connected.
+            const holder = document.createElement('div');
+            holder.className = 'aparte-segment aparte-n8n__component';
+            holder.setAttribute('data-component', key);
+            queueMicrotask(() => {
+                const chat = holder.closest('aparte-chat');
+                const draw = chat ? componentsByChat.get(chat)?.[key] : undefined;
+                if (!draw) { console.warn(`[aparte] n8n: no messageComponents entry for "${key}".`); return; }
+                const out = draw(args);
+                if (typeof out === 'string') holder.innerHTML = out;
+                else holder.replaceChildren(out);
+            });
+            return holder;
+        },
+    });
+}
 
 function read(key: string): string | undefined {
     try { return localStorage.getItem(key) ?? undefined; } catch { return undefined; }
@@ -226,11 +286,33 @@ export function createChat(options: ChatOptions): Chat {
     }, (error: unknown) => console.warn("[aparte] n8n: the chat's language could not be loaded; it stays in English.", error));
     // n8n's look in the icons too: a filled bubble on the button, a chevron once open.
     config.registerIcons(N8N_ICONS);
-    // A help chat is read, not quoted: no copy button under the answers. A tool call, should
-    // one be drawn, is core's quiet line already.
-    config.setBubbleActions({ copy: false });
-    // An error is core's: a sentence in the visitor's language, chosen by its code, and the
-    // message (what to change in n8n) on the console for the page's developer.
+    // A help chat is read, not quoted: no copy button under the answers (core's default since
+    // 0.27.1). A tool call, should one be drawn, is core's quiet line already.
+    if (options.enableMessageActions) {
+        config.registerAction({ id: 'n8n-repost', icon: 'retry', label: strings.repostButton, zones: ['bubble'], bubble: { roles: ['user'] } });
+        config.registerAction({ id: 'n8n-reuse', icon: 'edit', label: strings.reuseButton, zones: ['bubble'], bubble: { roles: ['user'] } });
+    }
+    // A picture the person sent opens full size in a new tab, as in n8n's widget.
+    config.setHostHandlers({ attachmentPreview: true });
+    // An error is core's card: a sentence in the visitor's language, chosen by its code, and
+    // the message (what to change in n8n) on the console for the page's developer. One that
+    // the workflow itself reported keeps its words too, under the sentence: they say what
+    // went wrong ("this model does not take images"), which n8n's widget shows as well.
+    config.setErrorRenderer(({ message, sentence, code }) => {
+        const workflow = code === WORKFLOW_ERROR;
+        const card = el('div', 'aparte-segment aparte-alert aparte-alert--danger aparte-segment-error');
+        if (code) card.setAttribute('data-error-code', workflow ? AparteErrorCode.PROVIDER_ERROR : code);
+        const icon = el('span', 'aparte-alert__icon');
+        icon.innerHTML = config.getIcon('error') || '⚠';
+        const body = el('div', 'aparte-alert__body');
+        body.append(
+            el('div', 'aparte-alert__title', config.t('error')),
+            el('div', 'aparte-alert__message', workflow ? config.t('errorNoAnswer') : sentence ?? message),
+        );
+        if (workflow && message) body.append(el('p', 'aparte-n8n__error-detail', message));
+        card.append(icon, body);
+        return card;
+    });
     setupMarkedStreamingProvider(undefined, config);
 
     // ── The markup ─────────────────────────────────────────────────────────────────────
@@ -258,6 +340,10 @@ export function createChat(options: ChatOptions): Chat {
     const chat = el('aparte-chat', 'aparte-n8n__chat') as ChatElement;
     // Named, so its composer and its client answer this chat alone on a page that has others.
     chat.id = `aparte-n8n-chat-${instance}`;
+    if (options.messageComponents) {
+        registerComponentRenderer();
+        componentsByChat.set(chat, options.messageComponents);
+    }
     const composer = el('aparte-composer') as Composer;
     composer.setAttribute('placeholder', strings.inputPlaceholder);
     let suggestions: HTMLElement | undefined;
@@ -332,9 +418,25 @@ export function createChat(options: ChatOptions): Chat {
     const firstMessages = (): AparteMessage[] => initial.map((content, i) => ({
         id: `n8n-initial-${i}`, role: 'assistant', content, timestamp: Date.now() - initial.length + i, status: 'completed',
     }));
-    const seeded = (): AparteMessage[] => (options.messageHistory ?? []).map((m, i) => ({
-        id: `n8n-seed-${i}`, role: m.sender === 'user' ? 'user' : 'assistant', content: m.text, timestamp: Date.now(), status: 'completed',
-    }));
+    const seeded = (): AparteMessage[] => (options.messageHistory ?? []).map((m, i) => {
+        const base = { id: `n8n-seed-${i}`, role: m.sender === 'user' ? 'user' : 'assistant', timestamp: Date.now(), status: 'completed' } as const;
+        if (m.type === 'component') {
+            const segment: ComponentSegment = { id: `n8n-seed-${i}-component`, type: 'n8n-component', key: m.key, arguments: m.arguments ?? {} };
+            return { ...base, content: '', segments: [segment as unknown as AparteSegment] };
+        }
+        return { ...base, content: m.text };
+    });
+    // n8n's `transparent`: a history message drawn without its bubble.
+    const transparent = new Set((options.messageHistory ?? []).flatMap((m, i) => (m.transparent ? [`n8n-seed-${i}`] : [])));
+    // The viewport draws its bubbles in its own time, so they are marked as they arrive.
+    if (transparent.size) {
+        new MutationObserver(() => {
+            for (const id of transparent) {
+                const bubble = chat.querySelector(`aparte-chat-bubble[message-id="${id}"]`);
+                if (bubble && !bubble.hasAttribute('data-n8n-transparent')) bubble.setAttribute('data-n8n-transparent', '');
+            }
+        }).observe(chat, { childList: true, subtree: true });
+    }
     const show = (messages: AparteMessage[]) => chat.viewport?.setMessages(messages);
     show([...firstMessages(), ...seeded()]);
     if (options.messageHistory?.length && suggestions) suggestions.hidden = true;
@@ -393,11 +495,11 @@ export function createChat(options: ChatOptions): Chat {
         sentIn = sessionId;
         if (suggestions) suggestions.hidden = true;
     });
-    const dispatchSend = (text: string) => {
+    const dispatchSend = (text: string, files?: File[]) => {
         if (welcome && !welcome.hidden) { welcome.hidden = true; chat.hidden = false; }
         // As the composer sends, without touching what the person is typing.
         chat.dispatchEvent(new CustomEvent('aparte-send', {
-            detail: { content: text, timestamp: Date.now(), targetId: chat.id },
+            detail: { content: text, timestamp: Date.now(), targetId: chat.id, ...(files?.length ? { files } : {}) },
             bubbles: true,
             composed: true,
         }));
@@ -441,6 +543,15 @@ export function createChat(options: ChatOptions): Chat {
                 if (event.type === 'run-done') done = true;
                 opts.emitter(event);
             },
+        }).catch((error: unknown) => {
+            // The workflow's own error, sent in its answer (no HTTP status): its words are kept
+            // for the visitor under core's sentence. Any other failure is core's to word.
+            // Read by its fields, not `instanceof`: a bundle may hold a second copy of core.
+            const failure = error as Partial<AparteError> | null;
+            if (failure?.code === AparteErrorCode.PROVIDER_ERROR && failure.httpStatus === undefined) {
+                throw new AparteError(failure.message ?? '', WORKFLOW_ERROR, failure.data, error);
+            }
+            throw error;
         });
         // After the turn, not inside it: a slow or failing hook neither holds the Stop
         // button nor turns a finished answer into an error. The second argument reads like
@@ -461,6 +572,68 @@ export function createChat(options: ChatOptions): Chat {
     // this chat, so a page's own aparté chat is never answered by this widget's workflow.
     const client = new AparteClient({ config, streamRunner, rawFileInject: 'none', scopeToTargetId: chat.id });
     client.start();
+
+    // ── n8n's message actions: send a message again, or take its text back ─────────────────
+    type Lookup = Viewport & { getMessage?(id: string): AparteMessage | undefined; getMessages?(): AparteMessage[] };
+    const lookup = () => chat.viewport as Lookup | null;
+    const onAction = (event: Event) => {
+        const { actionId, messageId } = (event as CustomEvent<{ actionId: string; messageId: string }>).detail;
+        if (actionId !== 'n8n-repost' && actionId !== 'n8n-reuse') return;
+        const message = lookup()?.getMessage?.(messageId);
+        if (!message) return;
+        if (actionId === 'n8n-reuse') {
+            composer.setValue(message.content ?? '');
+            chat.querySelector<HTMLElement & { focusEnd?: () => void }>('aparte-composer-input')?.focusEnd?.();
+            return;
+        }
+        // The files as they were sent, read back from the bubble's own copies.
+        void Promise.all((message.attachments ?? []).map(async (a) => {
+            const blob = await (await fetch(a.url)).blob();
+            return new File([blob], a.name, { type: a.type || blob.type });
+        })).then((files) => {
+            if (busy) queued.push(message.content ?? '');
+            else dispatchSend(message.content ?? '', files);
+        }, (error: unknown) => console.warn('[aparte] n8n: a file of that message could not be read again:', error));
+    };
+    chat.addEventListener('aparte-action', onAction);
+
+    // ── A sent message comes back with the arrow keys, as in n8n's widget ──────────────────
+    // Up in an empty input brings back the last message sent, and again the one before; Down
+    // walks forward, and past the last one gives back what was being typed. While the person
+    // types their own text, the keys move the caret as usual.
+    let recall = -1;
+    let draft = '';
+    const input = () => chat.querySelector<HTMLElement & { focusEnd?: () => void }>('aparte-composer-input');
+    composer.addEventListener('keydown', (event) => {
+        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+        if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.isComposing) return;
+        if (!(event.target as Element | null)?.closest('aparte-composer-input')) return;
+        const sent = (lookup()?.getMessages?.() ?? [])
+            .filter((m) => m.role === 'user' && m.content?.trim())
+            .map((m) => m.content ?? '');
+        if (event.key === 'ArrowUp') {
+            if ((recall === -1 && composer.value !== '') || recall >= sent.length - 1) return;
+            if (recall === -1) draft = composer.value;
+            recall++;
+        } else {
+            if (recall === -1) return;
+            recall--;
+        }
+        event.preventDefault();
+        composer.setValue(recall === -1 ? draft : sent[sent.length - 1 - recall] ?? '');
+        input()?.focusEnd?.();
+    });
+    chat.addEventListener('aparte-send', () => { recall = -1; draft = ''; });
+
+    // A picture opens in a new tab.
+    chat.addEventListener('aparte-attachment-preview', (event) => {
+        const { url } = (event as CustomEvent<{ url: string }>).detail;
+        if (url) window.open(url, '_blank', 'noopener');
+    });
+
+    // n8n's `disabled`, a Vue ref there: read once here, changed with `setDisabled()`.
+    const setDisabled = (disabled: boolean) => composer.toggleAttribute('disabled', disabled);
+    if (typeof options.disabled === 'object' ? options.disabled?.value : options.disabled) setDisabled(true);
 
     const launcher = () => (mode === 'window' ? (root as AparteLauncher) : undefined);
     const destroy = () => {
@@ -496,6 +669,7 @@ export function createChat(options: ChatOptions): Chat {
             if (suggestions) suggestions.hidden = false;
             show(firstMessages());
         },
+        setDisabled,
         destroy,
         unmount: destroy,
     };

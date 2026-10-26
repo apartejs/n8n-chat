@@ -351,3 +351,18 @@
     display: none;
   }
 }
+
+/* What the workflow itself said went wrong, under the sentence: smaller, and quieter. */
+.aparte-n8n .aparte-n8n__error-detail {
+  margin: var(--aparte-space-1) 0 0;
+  font-size: var(--aparte-font-size-sm);
+  color: var(--aparte-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* n8n's `transparent` history message: its words without the bubble around them. */
+.aparte-n8n aparte-chat-bubble[data-n8n-transparent] .aparte-message-content {
+  background: none;
+  border-color: transparent;
+  padding-inline: 0;
+}

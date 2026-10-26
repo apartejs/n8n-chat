@@ -4,14 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ours — @aparte/n8n-chat on aparté 0.27.1</title>
-<link rel="stylesheet" href="/dist/style.css">
 <link rel="stylesheet" href="/demo/backdrop.css">
 </head>
 <body>
 <header class="site"><strong>Le Fournil</strong><nav>Breads · Pastries · Visit us</nav></header>
 <main class="hero"><h1>Bread baked at dawn, every day.</h1><p>Sourdough, croissants and gluten-free loaves, a step from the station.</p></main>
 <script type="module">
-  import { createChat } from '/dist/index.js';
+  // The widget from its sources while it is worked on; `pnpm build` checks the package.
+  import '@aparte/core/styles.css';
+  import '/src/theme.css';
+  import { createChat } from '/src/index.ts';
   const params = new URLSearchParams(location.search);
   window.chat = createChat({
     webhookUrl: params.get('url') ?? 'http://localhost:5678/webhook/aparte-demo/chat',
@@ -20,6 +22,19 @@
     colorScheme: params.get('scheme') ?? 'light',
     allowFileUploads: true,
     ...(params.has('accept') ? { allowedFilesMimeTypes: params.get('accept') } : {}),
+    enableMessageActions: !params.has('noactions'),
+    disabled: params.has('disabled'),
+    ...(params.has('history') ? {
+      loadPreviousSession: false,
+      messageHistory: [
+        { sender: 'user', text: 'When are you open?' },
+        { sender: 'bot', type: 'component', key: 'hours', arguments: { days: 'Tuesday to Sunday', hours: '7:00 – 19:00' } },
+        { sender: 'bot', text: 'A note without its bubble (transparent).', transparent: true },
+      ],
+      messageComponents: {
+        hours: ({ days, hours }) => `<strong>Opening hours</strong><br>${days}, ${hours}`,
+      },
+    } : {}),
   });
   if (params.has('open')) window.chat.open();
 </script>

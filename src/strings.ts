@@ -23,6 +23,10 @@ export interface ChatStrings {
     inputPlaceholder: string;
     /** The name of the header's close button. */
     closeButtonTooltip: string;
+    /** With `enableMessageActions`: the action on a sent message that sends it again. */
+    repostButton: string;
+    /** With `enableMessageActions`: the action that puts a sent message back in the input. */
+    reuseButton: string;
 }
 
 interface Language {
@@ -43,6 +47,8 @@ const LANGUAGES: Record<string, Language> = {
             getStarted: 'New Conversation',
             inputPlaceholder: 'Type your question..',
             closeButtonTooltip: 'Close chat',
+            repostButton: 'Repost message',
+            reuseButton: 'Reuse message',
         },
         initial: ['Hi there! 👋', 'My name is Nathan. How can I assist you today?'],
     },
@@ -54,6 +60,8 @@ const LANGUAGES: Record<string, Language> = {
             getStarted: 'Nouvelle conversation',
             inputPlaceholder: 'Posez votre question…',
             closeButtonTooltip: 'Fermer le chat',
+            repostButton: 'Renvoyer le message',
+            reuseButton: 'Réutiliser le message',
         },
         initial: ['Bonjour ! 👋', 'Je m’appelle Nathan. Comment puis-je vous aider ?'],
         locale: () => import('@aparte/locales/fr').then((m) => m.fr),
@@ -66,6 +74,8 @@ const LANGUAGES: Record<string, Language> = {
             getStarted: 'Nueva conversación',
             inputPlaceholder: 'Escribe tu pregunta…',
             closeButtonTooltip: 'Cerrar el chat',
+            repostButton: 'Volver a enviar el mensaje',
+            reuseButton: 'Reutilizar el mensaje',
         },
         initial: ['¡Hola! 👋', 'Me llamo Nathan. ¿En qué puedo ayudarte hoy?'],
         locale: () => import('@aparte/locales/es').then((m) => m.es),
@@ -78,6 +88,8 @@ const LANGUAGES: Record<string, Language> = {
             getStarted: 'Nova conversa',
             inputPlaceholder: 'Digite sua pergunta…',
             closeButtonTooltip: 'Fechar o chat',
+            repostButton: 'Reenviar a mensagem',
+            reuseButton: 'Reutilizar a mensagem',
         },
         initial: ['Olá! 👋', 'Meu nome é Nathan. Como posso ajudar você hoje?'],
         locale: () => import('@aparte/locales/pt-BR').then((m) => m.ptBR),
@@ -90,6 +102,8 @@ const LANGUAGES: Record<string, Language> = {
             getStarted: 'Neues Gespräch',
             inputPlaceholder: 'Stell deine Frage…',
             closeButtonTooltip: 'Chat schließen',
+            repostButton: 'Nachricht erneut senden',
+            reuseButton: 'Nachricht wiederverwenden',
         },
         initial: ['Hallo! 👋', 'Ich heiße Nathan. Wie kann ich dir heute helfen?'],
         locale: () => import('@aparte/locales/de').then((m) => m.de),
@@ -102,6 +116,8 @@ const LANGUAGES: Record<string, Language> = {
             getStarted: 'Nuova conversazione',
             inputPlaceholder: 'Scrivi la tua domanda…',
             closeButtonTooltip: 'Chiudi la chat',
+            repostButton: 'Invia di nuovo il messaggio',
+            reuseButton: 'Riusa il messaggio',
         },
         initial: ['Ciao! 👋', 'Mi chiamo Nathan. Come posso aiutarti oggi?'],
         locale: () => import('@aparte/locales/it').then((m) => m.it),
@@ -114,6 +130,8 @@ const LANGUAGES: Record<string, Language> = {
             getStarted: 'Новый разговор',
             inputPlaceholder: 'Введите ваш вопрос…',
             closeButtonTooltip: 'Закрыть чат',
+            repostButton: 'Отправить сообщение ещё раз',
+            reuseButton: 'Использовать сообщение снова',
         },
         initial: ['Здравствуйте! 👋', 'Меня зовут Натан. Чем могу помочь?'],
         locale: () => import('@aparte/locales/ru').then((m) => m.ru),
@@ -126,6 +144,8 @@ const LANGUAGES: Record<string, Language> = {
             getStarted: '新しい会話',
             inputPlaceholder: '質問を入力してください…',
             closeButtonTooltip: 'チャットを閉じる',
+            repostButton: 'メッセージを再送信',
+            reuseButton: 'メッセージを再利用',
         },
         initial: ['こんにちは！👋', 'ネイサンです。今日はどのようなご用件でしょうか？'],
         locale: () => import('@aparte/locales/ja').then((m) => m.ja),
@@ -138,6 +158,8 @@ const LANGUAGES: Record<string, Language> = {
             getStarted: '새 대화',
             inputPlaceholder: '질문을 입력하세요…',
             closeButtonTooltip: '채팅 닫기',
+            repostButton: '메시지 다시 보내기',
+            reuseButton: '메시지 다시 사용',
         },
         initial: ['안녕하세요! 👋', '저는 네이선입니다. 무엇을 도와드릴까요?'],
         locale: () => import('@aparte/locales/ko').then((m) => m.ko),
@@ -150,6 +172,8 @@ const LANGUAGES: Record<string, Language> = {
             getStarted: '新对话',
             inputPlaceholder: '输入你的问题…',
             closeButtonTooltip: '关闭聊天',
+            repostButton: '重新发送消息',
+            reuseButton: '重新使用消息',
         },
         initial: ['你好！👋', '我是 Nathan。今天有什么可以帮你的？'],
         locale: () => import('@aparte/locales/zh-CN').then((m) => m.zhCN),
