@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Theirs — official @n8n/chat 1.43.3</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@n8n/chat@1.43.3/dist/style.css">
+<link rel="stylesheet" href="/demo/backdrop.css">
+</head>
+<body>
+<header class="site"><strong>Le Fournil</strong><nav>Breads · Pastries · Visit us</nav></header>
+<main class="hero"><h1>Bread baked at dawn, every day.</h1><p>Sourdough, croissants and gluten-free loaves, a step from the station.</p></main>
+<script type="module">
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat@1.43.3/dist/chat.bundle.es.js';
+  const params = new URLSearchParams(location.search);
+  window.app = createChat({
+    webhookUrl: params.get('url') ?? 'http://localhost:5678/webhook/aparte-demo/chat',
+    mode: params.get('mode') ?? 'window',
+    enableStreaming: params.get('stream') !== '0',
+    allowFileUploads: true,
+    ...(params.has('accept') ? { allowedFilesMimeTypes: params.get('accept') } : {}),
+  });
+</script>
+</body>
+</html>

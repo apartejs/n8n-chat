@@ -233,6 +233,14 @@
   border: var(--chat--message--bot--border, 1px solid transparent);
 }
 
+/* A turn that is only an error is the error card alone: n8n's white bubble around it drew
+   two boxes, one inside the other. A turn with words before its error keeps its bubble. */
+.aparte-n8n .aparte-message[data-role='assistant'][data-error] .aparte-message-content:not(:has(.aparte-segment-text, .aparte-segment-code)) {
+  background: none;
+  padding: 0;
+  border: 0;
+}
+
 .aparte-n8n .aparte-message[data-role='user'] .aparte-message-content {
   border-end-end-radius: 0;
   border: var(--chat--message--user--border, 1px solid transparent);

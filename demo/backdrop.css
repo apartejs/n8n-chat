@@ -1,0 +1,6 @@
+body { margin: 0; font-family: Georgia, serif; background: #fbf6ee; color: #3b2a1a; min-height: 100vh; }
+.site { display: flex; justify-content: space-between; padding: 1.25rem 2rem; border-bottom: 1px solid #e8dcc8; }
+.site nav { font-family: system-ui, sans-serif; font-size: 0.9rem; color: #7a6650; }
+.hero { padding: 5rem 2rem; max-width: 36rem; }
+.hero h1 { font-size: 2.6rem; margin: 0 0 1rem; line-height: 1.15; }
+.hero p { font-size: 1.15rem; color: #6b5640; }

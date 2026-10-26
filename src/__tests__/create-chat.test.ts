@@ -466,7 +466,7 @@ describe('createChat: on a page with other chats, and while an answer is on its 
         chat.send('Bonjour ?');
         await vi.waitFor(() => expect(chat.element.querySelector('.aparte-segment-error')).not.toBeNull());
         const alert = chat.element.querySelector('.aparte-segment-error')!;
-        expect(alert.textContent).toContain('L’assistant est injoignable pour le moment.');
+        expect(alert.textContent).toContain("L'assistant est injoignable pour le moment.");
         expect(alert.textContent).not.toContain('Failed to fetch');
         expect(alert.getAttribute('data-error-code')).toBe('NET_ERROR');
         expect(warn.mock.calls.map((c) => String(c[0])).some((m) => /Could not reach n8n at .*Allowed Origins/.test(m))).toBe(true);

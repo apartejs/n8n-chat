@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ours — @aparte/n8n-chat on aparté 0.27.1</title>
+<link rel="stylesheet" href="/dist/style.css">
+<link rel="stylesheet" href="/demo/backdrop.css">
+</head>
+<body>
+<header class="site"><strong>Le Fournil</strong><nav>Breads · Pastries · Visit us</nav></header>
+<main class="hero"><h1>Bread baked at dawn, every day.</h1><p>Sourdough, croissants and gluten-free loaves, a step from the station.</p></main>
+<script type="module">
+  import { createChat } from '/dist/index.js';
+  const params = new URLSearchParams(location.search);
+  window.chat = createChat({
+    webhookUrl: params.get('url') ?? 'http://localhost:5678/webhook/aparte-demo/chat',
+    mode: params.get('mode') ?? 'window',
+    defaultLanguage: params.get('lang') ?? 'en',
+    colorScheme: params.get('scheme') ?? 'light',
+    allowFileUploads: true,
+    ...(params.has('accept') ? { allowedFilesMimeTypes: params.get('accept') } : {}),
+  });
+  if (params.has('open')) window.chat.open();
+</script>
+</body>
+</html>

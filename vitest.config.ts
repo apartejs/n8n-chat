@@ -7,11 +7,12 @@ export default defineConfig({
         globals: true,
         environment: 'jsdom',
         setupFiles: ['./vitest.setup.ts'],
-        // Inlined so the source condition below reaches core's own import of the engine.
+        // Inlined so the alias below also reaches the aparté packages' own imports of core.
         server: { deps: { inline: [/^@aparte\//] } },
     },
     resolve: {
-        // The packages it puts together, from their source: a test never runs a stale dist.
-        conditions: ['@aparte-workspace/source', 'module', 'browser', 'development'],
+        // vitest resolves core's `node` condition, the DOM-free entry where no element upgrades;
+        // `@aparte/core/browser` is the browser entry by name, for a Node runner with a DOM.
+        alias: [{ find: /^@aparte\/core$/, replacement: '@aparte/core/browser' }],
     },
 });
