@@ -25,8 +25,9 @@ export default defineConfig({
         reportCompressedSize: false,
         rollupOptions: {
             // Never bundled: the packages it puts together, so a page loads one copy of each
-            // (a CDN resolves them as modules, a bundler dedupes them).
-            external: [/^@aparte\//, 'marked', 'remend'],
+            // (a CDN resolves them as modules, a bundler dedupes them). shiki's too: they are
+            // only reached through the highlighter's own chunk, loaded with the first code.
+            external: [/^@aparte\//, 'marked', 'remend', /^shiki(\/|$)/, /^@shikijs\//],
         },
     },
 });

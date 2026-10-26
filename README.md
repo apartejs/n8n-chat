@@ -30,8 +30,9 @@ steps, nine languages loaded one at a time, errors a visitor can read (and a con
 contrast, keyboard and screen-reader access, and a dark scheme. It takes n8n's `disabled`,
 `enableMessageActions` (Repost and Reuse on the person's messages), `messageComponents` (functions
 here, not Vue components), `transparent` history messages and the arrow keys that bring a sent
-message back. What it does not take over yet — response nodes, highlighted code, CSS written for
-n8n's `.chat-*` classes — is on the docs page.
+message back. Code in an answer is highlighted (its grammars load with the first code block) and
+links open in a new tab, as in n8n's widget. What it does not take over yet — response nodes, CSS
+written for n8n's `.chat-*` classes — is on the docs page.
 
 `@aparte/n8n-chat/theme.css` is the n8n theme alone: put a chat you compose with
 `@aparte/runner-n8n` and the React, Vue, Svelte or Angular components inside `.aparte-n8n`.

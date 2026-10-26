@@ -314,6 +314,13 @@ export function createChat(options: ChatOptions): Chat {
         return card;
     });
     setupMarkedStreamingProvider(undefined, config);
+    // Code in an answer, highlighted as in n8n's widget — its grammars fetched the first time
+    // an answer holds code, so a widget that never shows code never downloads them.
+    let highlighter: Promise<(code: string, lang: string) => Promise<string>> | undefined;
+    config.setHighlightProvider(async (code, lang) => {
+        highlighter ??= import('./highlight.js').then((m) => m.createHighlighter());
+        return (await highlighter)(code, lang);
+    });
 
     // ── The markup ─────────────────────────────────────────────────────────────────────
     const card = el('section', 'aparte-n8n__window');
@@ -624,6 +631,16 @@ export function createChat(options: ChatOptions): Chat {
         input()?.focusEnd?.();
     });
     chat.addEventListener('aparte-send', () => { recall = -1; draft = ''; });
+
+    // A link in an answer opens in a new tab, as in n8n's widget: the visitor keeps the page
+    // the chat is on. A modified click (a new window, a download) is the browser's.
+    chat.addEventListener('click', (event) => {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        const link = (event.target as Element | null)?.closest<HTMLAnchorElement>('.aparte-message-content a[href]');
+        if (!link || link.getAttribute('href')?.startsWith('#')) return;
+        event.preventDefault();
+        window.open(link.href, '_blank', 'noopener');
+    });
 
     // A picture opens in a new tab.
     chat.addEventListener('aparte-attachment-preview', (event) => {

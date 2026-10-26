@@ -147,3 +147,29 @@ describe('n8n parity: the error', () => {
         warn.mockRestore();
     });
 });
+
+describe('n8n parity: what an answer holds', () => {
+    it('highlights the code in an answer, its grammars loaded with the first block', async () => {
+        n8n(() => new Response(stream('Here:\n\n```js\nconst loaf = 1;\n```\n'), { status: 200 }));
+        const chat = mount();
+        chat.send('Show me code');
+        await vi.waitFor(() => expect(chat.element.querySelector('.aparte-message-content pre code')).not.toBeNull());
+        await vi.waitFor(() => expect(chat.element.querySelector('.aparte-message-content .shiki')).not.toBeNull(), { timeout: 10_000 });
+        expect(chat.element.querySelector('.aparte-message-content .shiki')!.textContent).toContain('const loaf = 1;');
+    });
+
+    it("opens a link in an answer in a new tab, and leaves a modified click to the browser", async () => {
+        n8n(() => new Response(stream('See [our menu](https://bakery.example/menu).'), { status: 200 }));
+        const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+        const chat = mount();
+        chat.send('Menu?');
+        await vi.waitFor(() => expect(chat.element.querySelector('.aparte-message-content a[href]')).not.toBeNull());
+        const link = chat.element.querySelector<HTMLAnchorElement>('.aparte-message-content a[href]')!;
+        link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+        expect(open).toHaveBeenCalledWith('https://bakery.example/menu', '_blank', 'noopener');
+        open.mockClear();
+        link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, ctrlKey: true }));
+        expect(open).not.toHaveBeenCalled();
+        open.mockRestore();
+    });
+});

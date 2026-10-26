@@ -43,15 +43,19 @@
         "@aparte/core": "0.27.1",
         "@aparte/locales": "0.27.1",
         "@aparte/plugin-marked": "0.27.1",
+        "@aparte/plugin-shiki": "0.27.1",
         "@aparte/runner-n8n": "0.27.1",
-        "marked": "18.0.6"
+        "@shikijs/langs": "4.5.0",
+        "@shikijs/themes": "4.5.0",
+        "marked": "18.0.6",
+        "shiki": "4.5.0"
     },
     "devDependencies": {
         "@types/node": "^22.0.0",
+        "jsdom": "~22.1.0",
         "typescript": "~5.7.0",
         "vite": "^6.0.0",
-        "vitest": "^2.1.0",
-        "jsdom": "~22.1.0"
+        "vitest": "^2.1.0"
     },
     "keywords": [
         "ai",
