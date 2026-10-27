@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDN bundle — @aparte/n8n-chat</title>
+<link rel="stylesheet" href="/dist/style.css">
+<link rel="stylesheet" href="/demo/backdrop.css">
+</head>
+<body>
+<header class="site"><strong>Le Fournil</strong><nav>Breads · Pastries · Visit us</nav></header>
+<main class="hero"><h1>Bread baked at dawn, every day.</h1><p>The CDN bundle: one module, no build step.</p></main>
+<script type="module">
+  // As a page loads it from jsDelivr: the bundle, with aparté inside, and its stylesheet.
+  import { createChat } from '/dist/cdn/n8n-chat.js';
+  const params = new URLSearchParams(location.search);
+  window.chat = createChat({
+    webhookUrl: params.get('url') ?? 'http://localhost:5678/webhook/aparte-demo/chat',
+    defaultLanguage: params.get('lang') ?? 'en',
+  });
+  if (params.has('open')) window.chat.open();
+</script>
+</body>
+</html>
