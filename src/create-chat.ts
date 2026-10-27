@@ -11,7 +11,7 @@
 import { AparteClient, AparteConfig, AparteError, AparteErrorCode, attachConfig, registerSegmentRenderer, uuid } from '@aparte/core';
 import type { AparteLauncher, AparteLocale, AparteMessage, AparteSegment, AparteStreamRunner } from '@aparte/core';
 import { setupMarkedStreamingProvider } from '@aparte/plugin-marked/streaming';
-import { createN8nRunner, loadN8nHistory } from '@aparte/runner-n8n';
+import { createN8nRunner, loadN8nHistory, setupN8nButtons } from '@aparte/runner-n8n';
 import { N8N_ICONS } from './icons.js';
 import { initialMessagesFor, loadLocale, stringsFor } from './strings.js';
 import type { ChatStrings } from './strings.js';
@@ -292,8 +292,11 @@ export function createChat(options: ChatOptions): Chat {
         config.registerAction({ id: 'n8n-repost', icon: 'retry', label: strings.repostButton, zones: ['bubble'], bubble: { roles: ['user'] } });
         config.registerAction({ id: 'n8n-reuse', icon: 'edit', label: strings.reuseButton, zones: ['bubble'], bubble: { roles: ['user'] } });
     }
-    // A picture the person sent opens full size in a new tab, as in n8n's widget.
-    config.setHostHandlers({ attachmentPreview: true });
+    // What the person sent opens in a new tab, a picture or a file, as in n8n's widget.
+    config.setHostHandlers({ attachmentPreview: true, filePreview: true });
+    // A Chat node's buttons (a workflow with response nodes) are asked at the composer, with
+    // their labels; n8n's Block User Input leaves no field to write in instead.
+    setupN8nButtons(config);
     // An error is core's card: a sentence in the visitor's language, chosen by its code, and
     // the message (what to change in n8n) on the console for the page's developer. One that
     // the workflow itself reported keeps its words too, under the sentence: they say what
@@ -642,7 +645,7 @@ export function createChat(options: ChatOptions): Chat {
         window.open(link.href, '_blank', 'noopener');
     });
 
-    // A picture opens in a new tab.
+    // A picture or a file opens in a new tab.
     chat.addEventListener('aparte-attachment-preview', (event) => {
         const { url } = (event as CustomEvent<{ url: string }>).detail;
         if (url) window.open(url, '_blank', 'noopener');

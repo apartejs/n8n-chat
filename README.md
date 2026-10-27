@@ -31,8 +31,10 @@ contrast, keyboard and screen-reader access, and a dark scheme. It takes n8n's `
 `enableMessageActions` (Repost and Reuse on the person's messages), `messageComponents` (functions
 here, not Vue components), `transparent` history messages and the arrow keys that bring a sent
 message back. Code in an answer is highlighted (its grammars load with the first code block) and
-links open in a new tab, as in n8n's widget. What it does not take over yet — response nodes, CSS
-written for n8n's `.chat-*` classes — is on the docs page.
+links open in a new tab, as in n8n's widget. A workflow that answers through response nodes works
+too — its Chat nodes' messages and buttons, Block User Input included — on a Chat Trigger in Hosted
+Chat mode, the only one n8n 2.x runs them on. CSS written for n8n's `.chat-*` classes does not carry
+over: theme with the `--chat--*` variables.
 
 `@aparte/n8n-chat/theme.css` is the n8n theme alone: put a chat you compose with
 `@aparte/runner-n8n` and the React, Vue, Svelte or Angular components inside `.aparte-n8n`.
