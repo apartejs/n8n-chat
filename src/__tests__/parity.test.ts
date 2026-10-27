@@ -5,6 +5,7 @@
  * Read from n8n's build, not its README, which leaves most of these out.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { resolveConfig } from '@aparte/core';
 import type { AparteMessage } from '@aparte/core';
 import { createChat } from '../index.js';
 import type { Chat, ChatOptions } from '../index.js';
@@ -173,3 +174,15 @@ describe('n8n parity: what an answer holds', () => {
         open.mockRestore();
     });
 });
+
+describe('n8n parity: response nodes and what the person sent', () => {
+    it("answers a Chat node's buttons in the widget, and opens a file the person sent", () => {
+        const chat = mount();
+        const config = resolveConfig(chat.element.querySelector('aparte-chat')!);
+        expect(config.getToolHandler('n8n_buttons')).toBeDefined();
+        expect(config.getHostHandlers()).toMatchObject({ attachmentPreview: true, filePreview: true });
+        // The presenter that asks the buttons at the composer, as a chat's default composition has.
+        expect(chat.element.querySelector('aparte-chat > aparte-elicitation')).not.toBeNull();
+    });
+});
+

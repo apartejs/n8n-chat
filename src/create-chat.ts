@@ -375,7 +375,9 @@ export function createChat(options: ChatOptions): Chat {
     row.append(el('aparte-composer-send'));
     shell.append(row);
     composer.append(shell);
-    chat.append(el('aparte-chat-viewport'), composer);
+    // The presenter a chat's default composition carries, written here since the widget
+    // composes its own: without it, a Chat node's buttons had nobody to ask them.
+    chat.append(el('aparte-chat-viewport'), el('aparte-elicitation'), composer);
 
     card.append(header, chat);
     if (strings.footer) card.append(el('p', 'aparte-n8n__footer', strings.footer));
