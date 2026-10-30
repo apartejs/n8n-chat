@@ -143,15 +143,85 @@ and the workflow carries on.
 on, the answer has to be a button; off, the words reach n8n as a message and the node goes on as
 not approved — as with n8n's own widget.
 
-On n8n 2.x, Chat nodes run only when the Chat Trigger's **Mode** is **Hosted Chat**; an embedded
-one stops with "Embedded chat is not supported". A button whose link leads off your n8n is not
-shown.
+Up to n8n 2.45, Chat nodes run only when the Chat Trigger's **Mode** is **Hosted Chat**; an
+embedded one stops with "Embedded chat is not supported". n8n 2.46 and 3.0 lift that limit and run
+them in **Embedded** mode too; the widget has been tested with Hosted Chat. A button whose link
+leads off your n8n is not shown.
 
 ## Files
 
 With `allowFileUploads`, the visitor picks, drops or pastes files, and n8n receives them as
 `files`, as from n8n's widget. A file can be removed with the keyboard; a picture or a file the
 visitor sent opens in a new tab.
+
+## Keeping bots out
+
+A public Chat Trigger answers anyone who finds its URL, and every answer can cost you a call to
+your AI model. [Cloudflare Turnstile](https://www.cloudflare.com/application-services/products/turnstile/)
+— free, and usually invisible to people — lets the workflow stop a bot before the model runs. The
+widget needs no option for it: `metadata` is read at each send and `beforeMessageSent` is awaited,
+so the page puts a fresh token in `metadata` before every message.
+
+1. In Cloudflare, add a Turnstile widget for your site's hostname. You get a **site key** (for the
+   page) and a **secret key** (for n8n).
+2. In the page:
+
+```html
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.1.0/dist/style.css">
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
+<div id="turnstile"></div>
+<script type="module">
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.1.0/dist/cdn/n8n-chat.js';
+
+  // A Turnstile token is single-use and lasts five minutes: ask for a new one before each message.
+  let widgetId;
+  let pending;
+  function turnstileToken() {
+    return new Promise((resolve, reject) => {
+      pending = { resolve, reject };
+      if (widgetId === undefined) {
+        widgetId = turnstile.render('#turnstile', {
+          sitekey: '<your site key>',
+          execution: 'execute',
+          appearance: 'interaction-only', // shown only when Cloudflare needs the visitor to click
+          callback: (token) => pending.resolve(token),
+          'error-callback': () => pending.reject(new Error('Turnstile could not check this visitor')),
+        });
+      } else {
+        turnstile.reset(widgetId);
+      }
+      turnstile.execute('#turnstile');
+    });
+  }
+
+  const metadata = {};
+  createChat({
+    webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat',
+    metadata,
+    beforeMessageSent: async () => {
+      metadata.turnstileToken = await turnstileToken();
+    },
+  });
+</script>
+```
+
+3. In the workflow, between the Chat Trigger and your agent:
+   - an **HTTP Request** node: `POST https://challenges.cloudflare.com/turnstile/v0/siteverify`,
+     body as JSON:
+     `{{ JSON.stringify({ secret: '<your secret key>', response: $json.metadata?.turnstileToken ?? '' }) }}`
+     (anyone who can open the workflow can read the secret there);
+   - an **If** node on `{{ $json.success }}` is true;
+   - on its true branch, an **Edit Fields (Set)** node in JSON mode that gives the trigger's message
+     back, so the agent and its memory read `chatInput` and `sessionId` as before:
+     `{{ JSON.stringify($('When chat message received').item.json) }}`;
+   - then your agent. The false branch ends there: nothing reaches the model.
+
+When Cloudflare refuses a visitor, the widget shows its usual "couldn't answer" message and nothing
+is sent. A visitor's reply to a waiting Chat node goes over the execution's WebSocket, which was
+opened by a checked message, so it needs no token. A bot that calls the webhook directly still
+starts an execution, a short one (on n8n Cloud, executions count against your plan); only a proxy in
+front of n8n stops it earlier. Checked on n8n 2.45.7 with Cloudflare's test keys, text messages
+only: with file uploads, check that your agent still receives the files after the Set node.
 
 ## Languages
 
