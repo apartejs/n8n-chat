@@ -12,13 +12,30 @@ import { AparteClient, AparteConfig, AparteError, AparteErrorCode, attachConfig,
 import type { AparteLauncher, AparteLocale, AparteMessage, AparteSegment, AparteStreamRunner } from '@aparte/core';
 import { setupMarkedStreamingProvider } from '@aparte/plugin-marked/streaming';
 import { createN8nRunner, loadN8nHistory, setupN8nButtons } from '@aparte/runner-n8n';
+import { setupCards } from './cards.js';
 import { N8N_ICONS } from './icons.js';
 import { initialMessagesFor, loadLocale, stringsFor } from './strings.js';
 import type { ChatStrings } from './strings.js';
 
+/**
+ * The webhook as an absolute URL: the n8n protocol builds its socket's address from it, and a
+ * relative one failed there with "Invalid URL" at the first button. Read against the page, as
+ * a link is; a URL that still is not one is said at once, by name.
+ */
+function absoluteUrl(url: string): string {
+    try {
+        return new URL(url, typeof location === 'undefined' ? undefined : location.href).href;
+    } catch {
+        throw new TypeError(`[aparte] n8n: webhookUrl "${url}" is not a URL. Use the Chat Trigger's production URL, the one that ends in /chat.`);
+    }
+}
+
 /** `createChat`'s options: `@n8n/chat`'s, under its names and with its defaults. */
 export interface ChatOptions {
-    /** The Chat Trigger's production URL, the one that ends in `/chat`. */
+    /**
+     * The Chat Trigger's production URL, the one that ends in `/chat`. A relative URL is read
+     * against the page's address, as a link would be.
+     */
     webhookUrl: string;
     /**
      * `headers` are sent with every request, read each time — so an object you change later
@@ -33,11 +50,12 @@ export interface ChatOptions {
      */
     target?: string | Element;
     /**
-     * `'window'` floats a button in the corner that opens the chat; `'fullscreen'` fills the
-     * target, which needs a height.
+     * `'window'` floats a button in the corner that opens the chat; `'embedded'` sits in the
+     * page as a block, filling the target, which needs a height. `'fullscreen'` is the same
+     * as `'embedded'`: the name `@n8n/chat` gives it, kept so its setup carries over.
      * @default 'window'
      */
-    mode?: 'window' | 'fullscreen';
+    mode?: 'window' | 'embedded' | 'fullscreen';
     /**
      * A ✕ in the header, in window mode. Without it the button in the corner closes the
      * chat, and on a phone, where the open chat covers the page, it moves to the top corner.
@@ -133,6 +151,13 @@ export interface ChatOptions {
      * here; this one takes functions, which any framework can call into.
      */
     messageComponents?: Record<string, (args: Record<string, unknown>) => HTMLElement | string>;
+    /**
+     * Draw a ```card-<name> code block of JSON in an answer as that rich card (`true` by
+     * default): weather, items, product, place, stats, order, stock, plan, score, media,
+     * link. Each card's code is fetched the first time it appears. `false` shows the block as
+     * code, as n8n's own widget does.
+     */
+    cards?: boolean;
 }
 
 /** A `messageHistory` entry: text, or a component drawn by `messageComponents`. */
@@ -152,7 +177,7 @@ export interface ChatResponse {
 
 /** What `createChat` returns: the widget, and what a page can do with it. */
 export interface Chat {
-    /** The widget's root element: `<aparte-launcher>` in window mode, a `div` in fullscreen. */
+    /** The widget's root element: `<aparte-launcher>` in window mode, a `div` when embedded. */
     readonly element: HTMLElement;
     /** The session the conversation runs in. */
     readonly sessionId: string;
@@ -263,6 +288,7 @@ let instances = 0;
  * createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
  */
 export function createChat(options: ChatOptions): Chat {
+    const webhookUrl = absoluteUrl(options.webhookUrl);
     const mode = options.mode ?? 'window';
     const language = options.defaultLanguage ?? 'en';
     const strings = stringsFor(language, options.i18n);
@@ -297,6 +323,8 @@ export function createChat(options: ChatOptions): Chat {
     // A Chat node's buttons (a workflow with response nodes) are asked at the composer, with
     // their labels; n8n's Block User Input leaves no field to write in instead.
     setupN8nButtons(config);
+    // A card the workflow writes into its answer: drawn, its code fetched the first time.
+    const stopCards = options.cards === false ? undefined : setupCards(config);
     // An error is core's card: a sentence in the visitor's language, chosen by its code, and
     // the message (what to change in n8n) on the console for the page's developer. One that
     // the workflow itself reported keeps its words too, under the sentence: they say what
@@ -459,7 +487,7 @@ export function createChat(options: ChatOptions): Chat {
         const ticket = ++loaded;
         historyRequest = new AbortController();
         void loadN8nHistory({
-            webhookUrl: options.webhookUrl,
+            webhookUrl,
             sessionId,
             ...(options.metadata ? { metadata: options.metadata } : {}),
             ...(options.chatSessionKey ? { chatSessionKey: options.chatSessionKey } : {}),
@@ -531,7 +559,7 @@ export function createChat(options: ChatOptions): Chat {
 
     let runSession = sessionId;
     const runner = createN8nRunner({
-        webhookUrl: options.webhookUrl,
+        webhookUrl,
         sessionId: () => runSession,
         headers: () => ({ ...(options.webhookConfig?.headers ?? {}) }),
         ...(options.fetch ? { fetch: options.fetch } : {}),
@@ -664,6 +692,7 @@ export function createChat(options: ChatOptions): Chat {
         queued.length = 0;
         window.removeEventListener('aparte-message-aborted', onStopped);
         client.stop();
+        stopCards?.();
         root.remove();
     };
 

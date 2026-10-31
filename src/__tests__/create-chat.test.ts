@@ -83,6 +83,11 @@ describe('createChat: the widget, as n8n draws it', () => {
         n8n();
         const host = document.createElement('main');
         document.body.append(host);
+        const block = mount({ target: host, mode: 'embedded', loadPreviousSession: false });
+        expect(block.element.tagName).toBe('DIV');
+        expect(block.element.querySelector('.aparte-n8n__close')).toBeNull();
+        block.destroy();
+        // `@n8n/chat`'s name for the same thing.
         const full = mount({ target: host, mode: 'fullscreen', loadPreviousSession: false });
         expect(full.element.parentElement).toBe(host);
         expect(full.element.tagName).toBe('DIV');
@@ -206,6 +211,40 @@ describe('createChat: the widget, as n8n draws it', () => {
 });
 
 describe('createChat: the conversation', () => {
+    it('reads a relative webhookUrl against the page, and names one that is not a URL', async () => {
+        const { fetch } = n8n();
+        const chat = mount({ webhookUrl: '/webhook/demo/chat', loadPreviousSession: false });
+        chat.send('Hello');
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+        expect(String(fetch.mock.calls[0]![0])).toBe(new URL('/webhook/demo/chat', location.href).href);
+        expect(() => createChat({ webhookUrl: 'http://' })).toThrow(/is not a URL/);
+    });
+
+    it('draws a card-weather code block in the answer as its rich card', async () => {
+        n8n({ reply: 'The weather in Lille:\n```card-weather\n{"location":"Lille","temperature":11,"condition":"rain"}\n```' });
+        const chat = mount({ loadPreviousSession: false });
+        chat.send('Weather in Lille?');
+        await vi.waitFor(() => expect(chat.element.querySelector('.aparte-weather-card')).not.toBeNull(), { timeout: 5000 });
+        expect(chat.element.querySelector('.aparte-weather-card')!.textContent).toContain('Lille');
+        // The block is not shown as text beside its card.
+        expect(chat.element.querySelector('aparte-card-fence')!.textContent).not.toContain('"temperature"');
+    });
+
+    it('shows the JSON of a block whose JSON does not parse, rather than nothing', async () => {
+        n8n({ reply: 'Here:\n```card-weather\n{"a":\n```' });
+        const chat = mount({ loadPreviousSession: false });
+        chat.send('Anything?');
+        await vi.waitFor(() => expect(chat.element.querySelector('aparte-card-fence')?.textContent?.trim()).toBe('{"a":'), { timeout: 5000 });
+    });
+
+    it("leaves a card block as code with cards: false, as n8n's own widget does", async () => {
+        n8n({ reply: 'Here:\n```card-weather\n{"location":"Lille"}\n```' });
+        const chat = mount({ loadPreviousSession: false, cards: false });
+        chat.send('Weather?');
+        await vi.waitFor(() => expect(chat.element.querySelector('pre code')?.textContent).toContain('"location"'));
+        expect(chat.element.querySelector('aparte-card-fence')).toBeNull();
+    });
+
     it('sends the message in the session, draws the answer, and calls the hooks with both', async () => {
         const { sent } = n8n({ reply: 'We sell sourdough and croissants.' });
         const before = vi.fn();

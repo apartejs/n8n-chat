@@ -2,14 +2,17 @@
 
 **n8n's chat widget, drawn by [aparté](https://apartejs.dev).** `createChat()` takes
 [`@n8n/chat`](https://www.npmjs.com/package/@n8n/chat)'s options and mounts the same widget on
-your n8n Chat Trigger — a button in the corner, or a chat that fills its target. Change the import,
-keep your call.
+your n8n Chat Trigger — a button in the corner, or a block in your page. Change the import, keep
+your call. And your workflow can answer with **rich cards**: an order, a booking, a product, the
+weather. [See it live](https://n8n-chat.apartejs.dev).
 
 <p>
-  <img src="docs/widget-light.png" alt="The widget open in a corner of a page, in n8n's light look: a question and the workflow's answer" width="300">
-  <img src="docs/widget-dark.png" alt="The same widget in its dark scheme" width="300">
+  <img src="docs/widget-card-order.png" alt="The widget open in a corner of a shop's page: the visitor asks where their order is, and the answer comes with the order's card, its items and total" width="300">
+  <img src="docs/widget-card-dark.png" alt="The same widget in its dark scheme, answering a booking with the booking's card" width="300">
 </p>
 
+- Rich cards your workflow writes as text: weather, order and booking, product, place, list, key
+  figures, stock, plan, score, media, link. n8n's own chat shows the same answer as a code block.
 - Every option of `@n8n/chat` 1.43, the same defaults, the same session in the browser — and the
   Chat nodes' messages and buttons of a workflow that answers through response nodes.
 - Ten languages, keyboard and screen-reader access, readable contrast, a dark scheme.
@@ -23,9 +26,9 @@ keep your call.
 ### From a CDN — no build step
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.1.0/dist/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.2.0/dist/style.css">
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.1.0/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.2.0/dist/cdn/n8n-chat.js';
 
   createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
 </script>
@@ -55,10 +58,10 @@ Replace the stylesheet and the import; the call stays as it is:
 
 ```diff
 - <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
-+ <link href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.1.0/dist/style.css" rel="stylesheet" />
++ <link href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.2.0/dist/style.css" rel="stylesheet" />
   <script type="module">
 -   import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
-+   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.1.0/dist/cdn/n8n-chat.js';
++   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.2.0/dist/cdn/n8n-chat.js';
     createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
   </script>
 ```
@@ -92,7 +95,7 @@ memory on the agent only, n8n answers that request with an error.
 | `webhookUrl` | the Chat Trigger's production URL, ending in `/chat` | required |
 | `webhookConfig` | `headers` sent with every request, read each time (a refreshed token is sent); `method` is accepted, every request is a POST | `{}` |
 | `target` | where it mounts: an element, or a selector | `'#n8n-chat'` |
-| `mode` | `'window'` (a button in the corner) or `'fullscreen'` (fills its target) | `'window'` |
+| `mode` | `'window'` (a button in the corner) or `'embedded'` (a block in the page, filling its target; `'fullscreen'`, `@n8n/chat`'s name for it, works too) | `'window'` |
 | `showWindowCloseButton` | a ✕ in the header, in window mode | `false` |
 | `showWelcomeScreen` | a screen with a "New Conversation" button first | `false` |
 | `loadPreviousSession` | keep the session in the browser and show its earlier messages | `true` |
@@ -148,6 +151,57 @@ embedded one stops with "Embedded chat is not supported". n8n 2.46 and 3.0 lift 
 them in **Embedded** mode too; the widget has been tested with Hosted Chat. A button whose link
 leads off your n8n is not shown.
 
+## Rich cards
+
+n8n's chat carries only text, so a card travels as text: a code block whose language names the
+card, holding its fields as JSON, after the sentence that answers.
+
+````md
+Order 1001 left our warehouse two days ago.
+
+```card-order
+{ "number": "1001", "status": "shipped", "total": "68.00", "currency": "EUR",
+  "line_items": [{ "name": "Linen shirt", "quantity": 1, "total": "49.00" },
+                 { "name": "Canvas tote bag", "quantity": 1, "total": "19.00" }] }
+```
+````
+
+The widget draws the block as the card; n8n's own chat, an email or a model reading the history back
+shows the sentence and the code. The cards: `weather`, `order` (a booking too, with
+`"kind": "booking"`), `product`, `place`, `items`, `stats`, `stock`, `plan`, `score`, `media`,
+`link`. Their fields are those of [`@aparte/plugin-cards`](https://apartejs.dev/guides/cards/), whose
+readers also take the shapes shops already return (WooCommerce and Shopify orders, schema.org
+products). Each card's code is fetched the first time an answer uses it.
+
+Build the block in a **Code** node from your tool's real result rather than asking the model to
+write JSON: it is exact every time, and a setting can turn it off for a chat that does not draw
+cards. The [shop and booking workflows](https://n8n-chat.apartejs.dev/#workflows) do it that way.
+`cards: false` shows the blocks as code.
+
+## The page the visitor is on
+
+`metadata` is sent with every message and reaches the workflow as `$json.metadata`. Send the page,
+and the workflow knows which product "this one" is:
+
+```js
+createChat({
+  webhookUrl: '…',
+  metadata: { page: location.href, title: document.title },
+});
+```
+
+## In the page, not in a corner
+
+`mode: 'embedded'` puts the chat in your page as a block, filling its `target`, which needs a
+height. `'fullscreen'`, `@n8n/chat`'s name for the same mode, works too.
+
+```html
+<div id="support-chat" style="height: 600px"></div>
+<script type="module">
+  createChat({ webhookUrl: '…', target: '#support-chat', mode: 'embedded' });
+</script>
+```
+
 ## Files
 
 With `allowFileUploads`, the visitor picks, drops or pastes files, and n8n receives them as
@@ -167,11 +221,11 @@ so the page puts a fresh token in `metadata` before every message.
 2. In the page:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.1.0/dist/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.2.0/dist/style.css">
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
 <div id="turnstile"></div>
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.1.0/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.2.0/dist/cdn/n8n-chat.js';
 
   // A Turnstile token is single-use and lasts five minutes: ask for a new one before each message.
   let widgetId;
@@ -260,6 +314,7 @@ or Angular components, inside an `.aparte-n8n` element.
 | Keyboard and screen reader | buttons without names | named controls, a labelled window, a modal sheet on a phone |
 | Contrast of the visitor's bubble | 2.55:1 | 4.7:1 (WCAG AA) |
 | Dark scheme | — | ✓ |
+| Rich cards | the JSON as text | drawn: order, booking, product, weather… |
 | Weight, first load (brotli) | ~465 KB | ~100 KB, +~103 KB with the first code block |
 | License | Sustainable Use License | MIT |
 
@@ -271,6 +326,7 @@ tested is what your visitors run.
 
 ## Links
 
+- [n8n-chat.apartejs.dev](https://n8n-chat.apartejs.dev) — the live demo, and workflows to start from.
 - [aparté](https://apartejs.dev) — the library it is built with.
 - [`@aparte/runner-n8n`](https://apartejs.dev/providers/agent/n8n/) — the n8n protocol alone, to put
   an n8n workflow behind a chat you compose yourself.

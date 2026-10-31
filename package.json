@@ -1,6 +1,6 @@
 {
     "name": "@aparte/n8n-chat",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "homepage": "https://github.com/apartejs/n8n-chat#readme",
     "description": "n8n's chat widget, drawn by aparté: createChat() takes @n8n/chat's options — a button in the corner or a full-page chat on your Chat Trigger, response nodes and buttons included, in n8n's look, in ten languages, from npm or a CDN.",
     "type": "module",
@@ -43,11 +43,12 @@
         "test:coverage": "vitest run --coverage"
     },
     "dependencies": {
-        "@aparte/core": "0.27.4",
-        "@aparte/locales": "0.27.4",
-        "@aparte/plugin-marked": "0.27.4",
-        "@aparte/plugin-shiki": "0.27.4",
-        "@aparte/runner-n8n": "0.27.4",
+        "@aparte/core": "0.29.2",
+        "@aparte/locales": "0.29.2",
+        "@aparte/plugin-cards": "0.29.2",
+        "@aparte/plugin-marked": "0.29.2",
+        "@aparte/plugin-shiki": "0.29.2",
+        "@aparte/runner-n8n": "0.29.2",
         "@shikijs/langs": "4.5.0",
         "@shikijs/themes": "4.5.0",
         "marked": "18.0.6",

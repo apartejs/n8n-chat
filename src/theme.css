@@ -81,6 +81,14 @@
   --aparte-message-content-padding: var(--aparte-n8n-message-padding);
 }
 
+/* n8n pads the bot's message too, and core caps the message at its column's width without
+   counting padding: the message ran past the column and the bubble clipped its right edge —
+   unseen in wrapped text, plain on a card that fills the width. A card is 100% wide plus its
+   border, the same way. */
+.aparte-n8n :is(.aparte-message-content, .aparte-rich-card) {
+  box-sizing: border-box;
+}
+
 /* Dark: n8n's own navy, which its widget never had. */
 .aparte-n8n[data-aparte-theme='dark'] {
   color-scheme: dark;
