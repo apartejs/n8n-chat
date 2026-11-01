@@ -220,6 +220,29 @@
   padding: var(--chat--spacing, 1rem);
 }
 
+/* "Powered by aparté": one small grey line under the input, not a band. `poweredBy: false`
+   leaves it out. */
+.aparte-n8n__powered {
+  margin: 0;
+  flex: none;
+  padding: 0 1rem 0.375rem;
+  text-align: center;
+  color: var(--aparte-text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.aparte-n8n__powered a {
+  color: inherit;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.aparte-n8n__powered a:hover,
+.aparte-n8n__powered a:focus-visible {
+  text-decoration: underline;
+}
+
 .aparte-n8n__footer {
   margin: 0;
   flex: none;

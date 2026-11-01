@@ -17,6 +17,8 @@ export interface ChatStrings {
     subtitle: string;
     /** A line under the chat; an empty string leaves it out. */
     footer: string;
+    /** The small line under the input, `{aparte}` standing for the link (`poweredBy: false` hides it). */
+    poweredBy: string;
     /** The welcome screen's button, with `showWelcomeScreen`. */
     getStarted: string;
     /** The input's placeholder. */
@@ -44,6 +46,7 @@ const LANGUAGES: Record<string, Language> = {
             title: 'Hi there! 👋',
             subtitle: "Start a chat. We're here to help you 24/7.",
             footer: '',
+            poweredBy: 'Powered by {aparte}',
             getStarted: 'New Conversation',
             inputPlaceholder: 'Type your question..',
             closeButtonTooltip: 'Close chat',
@@ -57,6 +60,7 @@ const LANGUAGES: Record<string, Language> = {
             title: 'Bonjour ! 👋',
             subtitle: 'Démarrez une conversation. Nous sommes là pour vous aider, 24 h/24.',
             footer: '',
+            poweredBy: 'Propulsé par {aparte}',
             getStarted: 'Nouvelle conversation',
             inputPlaceholder: 'Posez votre question…',
             closeButtonTooltip: 'Fermer le chat',
@@ -71,6 +75,7 @@ const LANGUAGES: Record<string, Language> = {
             title: '¡Hola! 👋',
             subtitle: 'Inicia una conversación. Estamos aquí para ayudarte, 24/7.',
             footer: '',
+            poweredBy: 'Con la tecnología de {aparte}',
             getStarted: 'Nueva conversación',
             inputPlaceholder: 'Escribe tu pregunta…',
             closeButtonTooltip: 'Cerrar el chat',
@@ -85,6 +90,7 @@ const LANGUAGES: Record<string, Language> = {
             title: 'Olá! 👋',
             subtitle: 'Comece uma conversa. Estamos aqui para ajudar, 24 horas por dia.',
             footer: '',
+            poweredBy: 'Desenvolvido com {aparte}',
             getStarted: 'Nova conversa',
             inputPlaceholder: 'Digite sua pergunta…',
             closeButtonTooltip: 'Fechar o chat',
@@ -99,6 +105,7 @@ const LANGUAGES: Record<string, Language> = {
             title: 'Hallo! 👋',
             subtitle: 'Starte ein Gespräch. Wir sind rund um die Uhr für dich da.',
             footer: '',
+            poweredBy: 'Bereitgestellt mit {aparte}',
             getStarted: 'Neues Gespräch',
             inputPlaceholder: 'Stell deine Frage…',
             closeButtonTooltip: 'Chat schließen',
@@ -113,6 +120,7 @@ const LANGUAGES: Record<string, Language> = {
             title: 'Ciao! 👋',
             subtitle: 'Inizia una conversazione. Siamo qui per aiutarti, 24 ore su 24.',
             footer: '',
+            poweredBy: 'Realizzato con {aparte}',
             getStarted: 'Nuova conversazione',
             inputPlaceholder: 'Scrivi la tua domanda…',
             closeButtonTooltip: 'Chiudi la chat',
@@ -127,6 +135,7 @@ const LANGUAGES: Record<string, Language> = {
             title: 'Здравствуйте! 👋',
             subtitle: 'Начните разговор. Мы на связи круглосуточно.',
             footer: '',
+            poweredBy: 'Работает на {aparte}',
             getStarted: 'Новый разговор',
             inputPlaceholder: 'Введите ваш вопрос…',
             closeButtonTooltip: 'Закрыть чат',
@@ -141,6 +150,7 @@ const LANGUAGES: Record<string, Language> = {
             title: 'こんにちは！👋',
             subtitle: 'チャットを始めましょう。24時間いつでもお手伝いします。',
             footer: '',
+            poweredBy: '{aparte} で動作',
             getStarted: '新しい会話',
             inputPlaceholder: '質問を入力してください…',
             closeButtonTooltip: 'チャットを閉じる',
@@ -155,6 +165,7 @@ const LANGUAGES: Record<string, Language> = {
             title: '안녕하세요! 👋',
             subtitle: '대화를 시작하세요. 24시간 언제든 도와드릴게요.',
             footer: '',
+            poweredBy: '{aparte} 기반',
             getStarted: '새 대화',
             inputPlaceholder: '질문을 입력하세요…',
             closeButtonTooltip: '채팅 닫기',
@@ -169,6 +180,7 @@ const LANGUAGES: Record<string, Language> = {
             title: '你好！👋',
             subtitle: '开始聊天吧。我们全天候为你服务。',
             footer: '',
+            poweredBy: '由 {aparte} 驱动',
             getStarted: '新对话',
             inputPlaceholder: '输入你的问题…',
             closeButtonTooltip: '关闭聊天',

@@ -80,6 +80,22 @@ describe('createChat: the widget, as n8n draws it', () => {
         expect(chat.element.querySelector('h1, h2, h3')).toBeNull();
     });
 
+    it('says it is powered by aparté under the input, in the chat\'s language, unless poweredBy is false', () => {
+        n8n();
+        const chat = mount({ loadPreviousSession: false, defaultLanguage: 'fr' });
+        const line = chat.element.querySelector('.aparte-n8n__powered')!;
+        expect(line.textContent).toBe('Propulsé par aparté');
+        const link = line.querySelector('a')!;
+        expect(link.getAttribute('href')).toBe('https://apartejs.dev/?ref=n8n-chat');
+        expect(link.getAttribute('rel')).toBe('noopener');
+        // Under the chat (and so its input), above n8n's own footer line.
+        expect(line.previousElementSibling?.tagName).toBe('APARTE-CHAT');
+        chat.destroy();
+
+        const quiet = mount({ loadPreviousSession: false, poweredBy: false });
+        expect(quiet.element.querySelector('.aparte-n8n__powered')).toBeNull();
+    });
+
     it('mounts in a target of yours, by element or by selector, and a full-page chat with no button and no close', () => {
         n8n();
         const host = document.createElement('main');
