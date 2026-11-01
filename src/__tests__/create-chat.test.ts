@@ -276,6 +276,29 @@ describe('createChat: the conversation', () => {
         expect(chat.element.querySelector('.aparte-place__credit')?.textContent).toBe('© Example');
     });
 
+    it("shows the quick replies an answer's suggestions block offers, and sends one on a click", async () => {
+        n8n({ reply: 'Which day suits you?\n```suggestions\n["Tuesday 4", "Wednesday 5"]\n```' });
+        const chat = mount({ loadPreviousSession: false });
+        chat.send('An appointment, please');
+        const chips = () => [...chat.element.querySelectorAll('aparte-suggestions[answers] button')].map((b) => b.textContent);
+        await vi.waitFor(() => expect(chips()).toEqual(['Tuesday 4', 'Wednesday 5']), { timeout: 5000 });
+        // Nothing of the block shows in the message itself (its source stays, hidden, as for
+        // every drawn block, so the text is read without the hidden parts).
+        const shown = chat.element.querySelector('aparte-chat-viewport')!.cloneNode(true) as Element;
+        shown.querySelectorAll('[hidden]').forEach((el) => el.remove());
+        expect(shown.textContent).not.toContain('Tuesday 4');
+        (chat.element.querySelector('aparte-suggestions[answers] button') as HTMLButtonElement).click();
+        await vi.waitFor(() => expect(contents(chat).some(([role, text]) => role === 'user' && text === 'Tuesday 4')).toBe(true));
+    });
+
+    it('leaves a suggestions block as code with replies: false', async () => {
+        n8n({ reply: 'Pick one:\n```suggestions\n["Yes", "No"]\n```' });
+        const chat = mount({ loadPreviousSession: false, replies: false });
+        chat.send('Question?');
+        await vi.waitFor(() => expect(chat.element.querySelector('pre code')?.textContent).toContain('"Yes"'));
+        expect(chat.element.querySelector('aparte-suggestions[answers]')).toBeNull();
+    });
+
     it('draws the place card on its own drawn map, fetching nothing, without those options', async () => {
         n8n({ reply: 'We are here:\n```card-place\n{"name":"Demo studio","coordinates":{"lat":48.8686,"lng":2.331}}\n```' });
         const chat = mount({ loadPreviousSession: false });

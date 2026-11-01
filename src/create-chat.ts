@@ -8,7 +8,7 @@
  * send and reset; a real new conversation; French; history without the tool steps; errors
  * that say what to change in n8n; and no style leaking into the page.
  */
-import { AparteClient, AparteConfig, AparteError, AparteErrorCode, attachConfig, registerSegmentRenderer, uuid } from '@aparte/core';
+import { AparteClient, AparteConfig, AparteError, AparteErrorCode, attachConfig, registerSegmentRenderer, setupSuggestionBlocks, uuid } from '@aparte/core';
 import type { AparteLauncher, AparteLocale, AparteMessage, AparteSegment, AparteStreamRunner } from '@aparte/core';
 import { setupMarkedStreamingProvider } from '@aparte/plugin-marked/streaming';
 import { createN8nRunner, loadN8nHistory, setupN8nButtons } from '@aparte/runner-n8n';
@@ -170,6 +170,13 @@ export interface ChatOptions {
      * } } });
      */
     cards?: boolean | CardOptions;
+    /**
+     * Show the quick replies an answer offers, above the input (`true` by default): a
+     * ```suggestions code block of JSON in the workflow's answer — the free times of a booking,
+     * "Return an item" — that the visitor clicks instead of typing. They go when a message is
+     * sent. `false` shows the block as code, as n8n's own widget does.
+     */
+    replies?: boolean;
     /**
      * Extend the chat with aparté's plugins and your own cards: called once with the widget's
      * config, before the first message. What it returns, if a function, runs on `destroy()`.
@@ -351,6 +358,8 @@ export function createChat(options: ChatOptions): Chat {
     setupN8nButtons(config);
     // A card the workflow writes into its answer: drawn, its code fetched the first time.
     const stopCards = options.cards === false ? undefined : setupCards(config, typeof options.cards === 'object' ? options.cards : {});
+    // The replies an answer offers (a ```suggestions block), shown above the input.
+    const stopReplies = options.replies === false ? undefined : setupSuggestionBlocks(config);
     // An error is core's card: a sentence in the visitor's language, chosen by its code, and
     // the message (what to change in n8n) on the console for the page's developer. One that
     // the workflow itself reported keeps its words too, under the sentence: they say what
@@ -419,6 +428,12 @@ export function createChat(options: ChatOptions): Chat {
         suggestions = el('aparte-suggestions');
         suggestions.setAttribute('suggestions', JSON.stringify(options.suggestions.map((text) => ({ label: text, prompt: text }))));
         composer.append(suggestions);
+    }
+    if (options.replies !== false) {
+        // The replies the last answer offers: empty until one does, gone on the next send.
+        const replies = el('aparte-suggestions');
+        replies.setAttribute('answers', '');
+        composer.append(replies);
     }
     const shell = el('div', 'aparte-composer-shell');
     const row = el('div', 'aparte-composer-row');
@@ -728,6 +743,7 @@ export function createChat(options: ChatOptions): Chat {
         window.removeEventListener('aparte-message-aborted', onStopped);
         client.stop();
         stopCards?.();
+        stopReplies?.();
         if (typeof stopSetup === 'function') stopSetup();
         root.remove();
     };
