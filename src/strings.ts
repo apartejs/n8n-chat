@@ -17,7 +17,7 @@ export interface ChatStrings {
     subtitle: string;
     /** A line under the chat; an empty string leaves it out. */
     footer: string;
-    /** The small line under the input, `{aparte}` standing for the link (`poweredBy: false` hides it). */
+    /** The small line under the input, `{aparte}` standing for the link to the library. */
     poweredBy: string;
     /** The welcome screen's button, with `showWelcomeScreen`. */
     getStarted: string;

@@ -80,7 +80,7 @@ describe('createChat: the widget, as n8n draws it', () => {
         expect(chat.element.querySelector('h1, h2, h3')).toBeNull();
     });
 
-    it('says it is powered by aparté under the input, in the chat\'s language, unless poweredBy is false', () => {
+    it('says it is powered by aparté under the input, in the chat\'s language, always', () => {
         n8n();
         const chat = mount({ loadPreviousSession: false, defaultLanguage: 'fr' });
         const line = chat.element.querySelector('.aparte-n8n__powered')!;
@@ -92,8 +92,12 @@ describe('createChat: the widget, as n8n draws it', () => {
         expect(line.previousElementSibling?.tagName).toBe('APARTE-CHAT');
         chat.destroy();
 
-        const quiet = mount({ loadPreviousSession: false, poweredBy: false });
-        expect(quiet.element.querySelector('.aparte-n8n__powered')).toBeNull();
+        // `i18n` changes its words, not its presence: words without the link get the default.
+        const reworded = mount({ loadPreviousSession: false, i18n: { en: { poweredBy: 'Built with {aparte}' } } });
+        expect(reworded.element.querySelector('.aparte-n8n__powered')?.textContent).toBe('Built with aparté');
+        reworded.destroy();
+        const emptied = mount({ loadPreviousSession: false, i18n: { en: { poweredBy: '' } } });
+        expect(emptied.element.querySelector('.aparte-n8n__powered a')?.textContent).toBe('aparté');
     });
 
     it('mounts in a target of yours, by element or by selector, and a full-page chat with no button and no close', () => {

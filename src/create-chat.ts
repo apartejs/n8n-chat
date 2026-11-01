@@ -178,12 +178,6 @@ export interface ChatOptions {
      */
     replies?: boolean;
     /**
-     * A small grey line under the input, "Powered by aparté", linking to the library this
-     * widget is built with. `false` hides it.
-     * @default true
-     */
-    poweredBy?: boolean;
-    /**
      * Extend the chat with aparté's plugins and your own cards: called once with the widget's
      * config, before the first message. What it returns, if a function, runs on `destroy()`.
      *
@@ -462,9 +456,12 @@ export function createChat(options: ChatOptions): Chat {
     chat.append(el('aparte-chat-viewport'), el('aparte-elicitation'), composer);
 
     card.append(header, chat);
-    if (options.poweredBy !== false && strings.poweredBy) {
+    // "Powered by aparté", a small grey line under the input, always: the words follow `i18n`,
+    // the line and its link stay.
+    {
         const line = el('p', 'aparte-n8n__powered');
-        const [before, after = ''] = strings.poweredBy.split('{aparte}');
+        const words = strings.poweredBy?.includes('{aparte}') ? strings.poweredBy : 'Powered by {aparte}';
+        const [before, after = ''] = words.split('{aparte}');
         const link = el('a', undefined, 'aparté');
         link.setAttribute('href', 'https://apartejs.dev/?ref=n8n-chat');
         link.setAttribute('target', '_blank');

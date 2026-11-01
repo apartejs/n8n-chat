@@ -7,8 +7,8 @@ your call. And your workflow can answer with **rich cards** — an order, a book
 weather — and offer **quick replies** the visitor clicks. [See it live](https://n8n-chat.apartejs.dev).
 
 <p>
-  <img src="docs/widget-card-order.png" alt="The widget open in a corner of a shop's page: the visitor asks where their order is, and the answer comes with the order's card, its items and total" width="300">
-  <img src="docs/widget-card-dark.png" alt="The same widget in its dark scheme, answering a booking with the booking's card" width="300">
+  <img src="https://raw.githubusercontent.com/apartejs/n8n-chat/v0.5.0/docs/widget-card-order.png" alt="The widget answering where order 1001 is, with the order's card: its items, its status and its total, and a small Powered by aparté line under the input" width="300">
+  <img src="https://raw.githubusercontent.com/apartejs/n8n-chat/v0.5.0/docs/widget-card-dark.png" alt="The same widget in its dark scheme, answering about order 1002 with its card" width="300">
 </p>
 
 - Rich cards your workflow writes as text: weather, order and booking, product, place, list, key
@@ -22,7 +22,7 @@ weather — and offer **quick replies** the visitor clicks. [See it live](https:
 - About 143 KB compressed on the first load, against about 471 KB (measured 2026-10-31, `@n8n/chat` 1.44.7).
 - A handle to drive it from your page: `open`, `close`, `toggle`, `send`, `reset`, `setDisabled`,
   `destroy`.
-- MIT. A small "Powered by aparté" line sits under the input; `poweredBy: false` removes it.
+- MIT. A small grey "Powered by aparté" line sits under the input, linking to [apartejs.dev](https://apartejs.dev).
 
 ## Install
 
@@ -119,7 +119,6 @@ memory on the agent only, n8n answers that request with an error.
 | `beforeMessageSent`, `afterMessageSent` | hooks around each message | — |
 | `suggestions` | questions offered above the input until the first message | — |
 | `replies` | show the [quick replies](#quick-replies) an answer offers (a ` ```suggestions ` block) above the input | `true` |
-| `poweredBy` | a small grey "Powered by aparté" line under the input, linking to [apartejs.dev](https://apartejs.dev); `false` hides it | `true` |
 | `colorScheme` | `'light'`, `'dark'` or `'auto'` (the visitor's) | `'light'` |
 | `fetch` | the `fetch` every request goes through | the global one |
 | `enableStreaming`, `theme` | accepted for compatibility | — |
