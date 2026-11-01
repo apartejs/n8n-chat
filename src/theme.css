@@ -15,6 +15,11 @@
  * Light by default like n8n's widget, whatever the visitor's system: a chat half in the
  * page's colors is worse than one in its own. Dark is `colorScheme: 'dark'` (or
  * `data-aparte-theme="dark"`), or the visitor's own with `colorScheme: 'auto'`.
+ *
+ * One color is enough: `--chat--color--secondary` alone also colors the button in the corner
+ * (n8n's `--primary`, when the page leaves it unset), every hover is derived from the color it
+ * darkens, and dark keeps the page's header and tints its surfaces with that color. Unset,
+ * each falls back to n8n's own.
  */
 
 .aparte-n8n {
@@ -34,7 +39,8 @@
   --aparte-neutral: #5b5f7a;
   --aparte-border: var(--chat--color-light-shade-50, #e6e9f1);
   --aparte-primary: var(--chat--color--secondary, #178272);
-  --aparte-primary-hover: var(--chat--color-secondary-shade-50, #126a5d);
+  /* Derived, not n8n's fixed shade: a page that set its own color would hover back to n8n's green. */
+  --aparte-primary-hover: var(--chat--color-secondary-shade-50, color-mix(in oklab, var(--aparte-primary) 85%, #000));
   --aparte-on-primary: var(--chat--color-white, #fff);
   --aparte-message-content-text-user: var(--chat--message--user--color, var(--chat--color-white, #fff));
   --aparte-message-content-bg-assistant: var(--chat--message--bot--background, var(--chat--color-white, #fff));
@@ -42,7 +48,7 @@
   --aparte-message-content-padding-assistant: var(--chat--message--padding, var(--chat--spacing, 1rem));
 
   /* What core derives on the chat's own anchors, kept here and handed down below. */
-  --aparte-n8n-accent: var(--chat--color--primary, #e74266);
+  --aparte-n8n-accent: var(--chat--color--primary, var(--chat--color--secondary, #e74266));
   --aparte-n8n-user-bg: var(--chat--message--user--background, var(--aparte-primary));
   --aparte-n8n-radius: var(--chat--message--border-radius, var(--chat--border-radius, 0.25rem));
   --aparte-n8n-code-bg: var(--chat--message--pre--background, rgba(0, 0, 0, 0.05));
@@ -61,8 +67,9 @@
   --aparte-n8n-header-color: var(--chat--header--color, var(--chat--color-light, #f2f4f8));
   --aparte-n8n-footer-bg: var(--chat--footer--background, var(--chat--color-light, #f2f4f8));
   --aparte-n8n-footer-color: var(--chat--footer--color, var(--chat--color-dark, #101330));
-  --aparte-n8n-toggle-bg: var(--chat--toggle--background, var(--chat--color--primary, #e74266));
-  --aparte-n8n-toggle-hover-bg: var(--chat--toggle--hover--background, var(--chat--color--primary-shade-50, #db4061));
+  /* The page's one color when it set no --primary: a green chat behind a pink button reads as a bug. */
+  --aparte-n8n-toggle-bg: var(--chat--toggle--background, var(--chat--color--primary, var(--chat--color--secondary, #e74266)));
+  --aparte-n8n-toggle-hover-bg: var(--chat--toggle--hover--background, var(--chat--color--primary-shade-50, color-mix(in oklab, var(--aparte-n8n-toggle-bg) 88%, #000)));
   --aparte-n8n-toggle-color: var(--chat--toggle--color, var(--chat--color-white, #fff));
 }
 
@@ -92,38 +99,44 @@
 /* Dark: n8n's own navy, which its widget never had. */
 .aparte-n8n[data-aparte-theme='dark'] {
   color-scheme: dark;
-  --aparte-bg: #0b0d24;
-  --aparte-surface-1: #151937;
-  --aparte-surface-2: #1d2246;
+  /* n8n's navy, tinted with the page's color when it set one (unset, the navy itself). */
+  --aparte-bg: color-mix(in oklab, var(--chat--color--secondary, #0b0d24) 7%, #0b0d24);
+  --aparte-surface-1: color-mix(in oklab, var(--chat--color--secondary, #151937) 9%, #151937);
+  --aparte-surface-2: color-mix(in oklab, var(--chat--color--secondary, #1d2246) 10%, #1d2246);
   --aparte-text: #eef0f6;
   --aparte-text-muted: #a3a7c2;
   --aparte-neutral: #a3a7c2;
-  --aparte-border: #262b52;
-  --aparte-message-content-bg-assistant: #171b3d;
+  --aparte-border: color-mix(in oklab, var(--chat--color--secondary, #262b52) 16%, #262b52);
+  --aparte-message-content-bg-assistant: color-mix(in oklab, var(--chat--color--secondary, #171b3d) 9%, #171b3d);
   --aparte-message-content-text-assistant: #eef0f6;
   --aparte-n8n-code-bg: rgba(255, 255, 255, 0.06);
-  --aparte-n8n-input-bg: #151937;
-  --aparte-n8n-header-bg: #060716;
-  --aparte-n8n-footer-bg: #0b0d24;
+  /* Read from the surfaces, so a page that sets them in dark sets the field and the footer too. */
+  --aparte-n8n-input-bg: var(--aparte-surface-1);
+  /* The page's header color, kept in dark: a brand bar does not turn navy at night. */
+  --aparte-n8n-header-bg: var(--chat--header--background, #060716);
+  --aparte-n8n-footer-bg: var(--aparte-bg);
   --aparte-n8n-footer-color: #eef0f6;
 }
 
 @media (prefers-color-scheme: dark) {
   .aparte-n8n:not([data-aparte-theme]) {
     color-scheme: dark;
-    --aparte-bg: #0b0d24;
-    --aparte-surface-1: #151937;
-    --aparte-surface-2: #1d2246;
+    /* n8n's navy, tinted with the page's color when it set one (unset, the navy itself). */
+    --aparte-bg: color-mix(in oklab, var(--chat--color--secondary, #0b0d24) 7%, #0b0d24);
+    --aparte-surface-1: color-mix(in oklab, var(--chat--color--secondary, #151937) 9%, #151937);
+    --aparte-surface-2: color-mix(in oklab, var(--chat--color--secondary, #1d2246) 10%, #1d2246);
     --aparte-text: #eef0f6;
     --aparte-text-muted: #a3a7c2;
     --aparte-neutral: #a3a7c2;
-    --aparte-border: #262b52;
-    --aparte-message-content-bg-assistant: #171b3d;
+    --aparte-border: color-mix(in oklab, var(--chat--color--secondary, #262b52) 16%, #262b52);
+    --aparte-message-content-bg-assistant: color-mix(in oklab, var(--chat--color--secondary, #171b3d) 9%, #171b3d);
     --aparte-message-content-text-assistant: #eef0f6;
     --aparte-n8n-code-bg: rgba(255, 255, 255, 0.06);
-    --aparte-n8n-input-bg: #151937;
-    --aparte-n8n-header-bg: #060716;
-    --aparte-n8n-footer-bg: #0b0d24;
+    /* Read from the surfaces, so a page that sets them in dark sets the field and the footer too. */
+    --aparte-n8n-input-bg: var(--aparte-surface-1);
+    /* The page's header color, kept in dark: a brand bar does not turn navy at night. */
+    --aparte-n8n-header-bg: var(--chat--header--background, #060716);
+    --aparte-n8n-footer-bg: var(--aparte-bg);
     --aparte-n8n-footer-color: #eef0f6;
   }
 }

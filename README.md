@@ -27,9 +27,9 @@ weather. [See it live](https://n8n-chat.apartejs.dev).
 ### From a CDN — no build step
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.0/dist/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.1/dist/style.css">
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.0/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.1/dist/cdn/n8n-chat.js';
 
   createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
 </script>
@@ -59,10 +59,10 @@ Replace the stylesheet and the import; the call stays as it is:
 
 ```diff
 - <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
-+ <link href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.0/dist/style.css" rel="stylesheet" />
++ <link href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.1/dist/style.css" rel="stylesheet" />
   <script type="module">
 -   import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
-+   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.0/dist/cdn/n8n-chat.js';
++   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.1/dist/cdn/n8n-chat.js';
     createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
   </script>
 ```
@@ -110,7 +110,7 @@ memory on the agent only, n8n answers that request with an error.
 | `messageComponents` | functions that draw `type: 'component'` history messages | — |
 | `metadata` | sent with every message, as `metadata` in the trigger's output | — |
 | `allowFileUploads`, `allowedFilesMimeTypes` | let the person attach files, and which (`'image/*,application/pdf'`, extensions too) | `false`, any |
-| `cards` | draw the ` ```card-<name> ` blocks of an answer as [cards](#rich-cards) | `true` |
+| `cards` | draw the ` ```card-<name> ` blocks of an answer as [cards](#rich-cards); an object gives a card its options (`{ place: { mapTiles } }`) | `true` |
 | `setup` | `(config) => stop?`: aparté's plugins and your own cards, on this chat ([below](#your-own-cards-and-apartés-plugins)) | — |
 | `enableMessageActions` | "Repost" and "Reuse" on the person's own messages | `false` |
 | `disabled` | block the input (`true`, or n8n's `{ value }`) | `false` |
@@ -181,6 +181,26 @@ write JSON: it is exact every time, and a setting can turn it off for a chat tha
 cards. The [shop and booking workflows](https://n8n-chat.apartejs.dev/#workflows) do it that way.
 `cards: false` shows the blocks as code.
 
+A card's own options go in `cards`, handed to it when it loads. The place card, for one, draws a map
+of its own and fetches nothing; give it your map tiles and a place with `coordinates` sits on a real
+map:
+
+```js
+createChat({
+  webhookUrl: 'YOUR_PRODUCTION_URL',
+  cards: {
+    place: {
+      mapTiles: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      mapAttribution: '© OpenStreetMap contributors',
+    },
+  },
+});
+```
+
+Each tile is a request from the visitor's browser to that server, which is why it is your choice:
+OpenStreetMap's tiles need no key but have [a usage policy](https://operations.osmfoundation.org/policies/tiles/)
+against heavy traffic; MapTiler's or Stadia's take your key in the address.
+
 ## Your own cards, and aparté's plugins
 
 The widget is built with [aparté](https://apartejs.dev), and `setup` hands you its config: anything
@@ -210,7 +230,7 @@ createChat({
 ```
 
 Take `defineCard` from the widget's own module, as above, and from the same URL when you load
-it from a CDN (`…/@aparte/n8n-chat@0.3.0/dist/cdn/n8n-chat.js`): the card and the chat then share
+it from a CDN (`…/@aparte/n8n-chat@0.3.1/dist/cdn/n8n-chat.js`): the card and the chat then share
 one copy of aparté. A kit loaded from another URL keeps its cards where the chat never looks.
 
 ````md
@@ -309,11 +329,11 @@ so the page puts a fresh token in `metadata` before every message.
 2. In the page:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.0/dist/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.1/dist/style.css">
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
 <div id="turnstile"></div>
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.0/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.1/dist/cdn/n8n-chat.js';
 
   // A Turnstile token is single-use and lasts five minutes: ask for a new one before each message.
   let widgetId;
@@ -371,21 +391,56 @@ English, French, Spanish, Portuguese (Brazil), German, Italian, Russian, Japanes
 Chinese (Simplified). A page downloads only the language it uses. Set `defaultLanguage`; override
 any word of the header or the input with `i18n`; give a whole `locale` for another language.
 
-## Look
+## Colors
 
-It wears n8n's look by default and reads n8n's main `--chat--*` variables — colors, fonts, radii,
-the window's size, the button — so a page that themed n8n's widget keeps most of its theme:
+Your brand color, in one line. It colors the visitor's bubble, the send button, the links and the
+button in the corner, in light and in dark:
 
 ```css
 :root {
-  --chat--color--primary: #e74266;
-  --chat--color--secondary: #178272;
-  --chat--window--width: 420px;
+  --chat--color--secondary: #c2410c;
 }
 ```
 
-CSS written against n8n's `.chat-*` classes does not carry over; the variables do.
-`colorScheme: 'dark'` (or `'auto'`) gives the dark scheme. `@aparte/n8n-chat/theme.css` is the n8n
+Keep white text readable on it: 4.5:1 or more (n8n's own `#20b69e` gives 2.55:1, which is why the
+default here is `#178272`). Two more lines give the chat its own surroundings:
+
+```css
+:root {
+  --chat--header--background: #9a3412; /* the bar with the title */
+  --chat--body--background: #fbf2ec;   /* behind the messages, in light */
+}
+```
+
+| Variable | What it changes | When unset |
+| --- | --- | --- |
+| `--chat--color--secondary` | your bubble, the send button, links; tints the dark surfaces | `#178272` |
+| `--chat--color--primary` | the button in the corner, when it should differ | `--secondary`, else n8n's `#e74266` |
+| `--chat--header--background` / `--chat--header--color` | the title bar, in light and in dark | n8n's navy / `#f2f4f8` |
+| `--chat--body--background` | behind the messages (light) | `#f2f4f8` |
+| `--chat--message--bot--background` / `--chat--message--user--background` | one side's bubbles | white / `--secondary` |
+| `--chat--font-family`, `--chat--border-radius`, `--chat--window--width` / `--height` | type, corners, the window | n8n's |
+
+Hovers are derived from the color they darken, so one color never hovers back to n8n's green.
+
+**Dark.** `colorScheme: 'dark'` always, `'auto'` when the visitor's system is dark (n8n's widget has
+no dark scheme). It keeps your header and tints its navy with your `--secondary`, so the line above
+is enough. For your own dark surfaces, set aparté's variables on the widget when it is dark:
+
+```css
+.aparte-n8n[data-aparte-theme='dark'] {                 /* colorScheme: 'dark' */
+  --aparte-bg: #1a100a;                  /* behind the messages */
+  --aparte-surface-1: #2a1a11;           /* the field, the cards */
+  --aparte-border: #4a2c1d;
+  --aparte-message-content-bg-assistant: #2c1b12;
+}
+/* colorScheme: 'auto': the same, inside @media (prefers-color-scheme: dark)
+   on .aparte-n8n:not([data-aparte-theme]) */
+```
+
+A page that themed n8n's widget keeps its variables; CSS written against n8n's `.chat-*` classes
+does not carry over. Try a color, a header and the dark scheme side by side on
+[n8n-chat.apartejs.dev](https://n8n-chat.apartejs.dev/#demo), which writes the CSS for you. `@aparte/n8n-chat/theme.css` is the n8n
 look alone, for a chat you compose yourself with
 [`@aparte/runner-n8n`](https://apartejs.dev/providers/agent/n8n/) and aparté's React, Vue, Svelte
 or Angular components, inside an `.aparte-n8n` element.

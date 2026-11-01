@@ -11,6 +11,7 @@
  */
 import { setupCardFences } from '@aparte/plugin-cards';
 import type { AparteConfig } from '@aparte/core';
+import type { PlaceCardOptions } from '@aparte/plugin-cards/place';
 
 /** Each card, and how to fetch it: one chunk per card in the CDN build too. */
 const CARDS = {
@@ -27,5 +28,30 @@ const CARDS = {
     link: () => import('@aparte/plugin-cards/link'),
 };
 
+/**
+ * A card's own options, handed to its setup when it loads, so passing them fetches nothing
+ * early. What is about where a card's data comes from (`tool`, `map`) is not here: the
+ * widget's blocks are that.
+ */
+export type CardOptions = {
+    place?: Pick<PlaceCardOptions, 'mapTiles' | 'mapAttribution' | 'mapZoom' | 'currencySymbol' | 'builtIns'>;
+} & Partial<Record<Exclude<keyof typeof CARDS, 'place'>, Record<string, unknown>>>;
+
+/** `place` → `setupPlaceCard`, the setup each card's entry exports. */
+const setupName = (card: string) => `setup${card.charAt(0).toUpperCase()}${card.slice(1)}Card`;
+
 /** Draw the card blocks in this widget's answers. Returns the function that stops it. */
-export const setupCards = (config: AparteConfig): (() => void) => setupCardFences({ config, load: CARDS });
+export function setupCards(config: AparteConfig, options: CardOptions = {}): () => void {
+    const load = Object.fromEntries(Object.entries(CARDS).map(([name, fetch]) => {
+        const own = options[name as keyof CardOptions];
+        if (!own) return [name, fetch];
+        // The card's setup, its options under what the fence passes (the config).
+        return [name, () => fetch().then((module: Record<string, unknown>) => {
+            const setup = module[setupName(name)];
+            return typeof setup === 'function'
+                ? { ...module, [setupName(name)]: (o: Record<string, unknown>) => (setup as (x: Record<string, unknown>) => unknown)({ ...own, ...o }) }
+                : module;
+        })];
+    }));
+    return setupCardFences({ config, load });
+}

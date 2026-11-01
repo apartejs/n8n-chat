@@ -267,6 +267,23 @@ describe('createChat: the conversation', () => {
         expect(chat.element.querySelector('aparte-card-fence')!.textContent).not.toContain('"temperature"');
     });
 
+    it("hands a card its own options from cards: the place card on the page's map tiles", async () => {
+        n8n({ reply: 'We are here:\n```card-place\n{"name":"Demo studio","coordinates":{"lat":48.8686,"lng":2.331}}\n```' });
+        const chat = mount({ loadPreviousSession: false, cards: { place: { mapTiles: 'https://tiles.example/{z}/{x}/{y}.png', mapAttribution: '© Example' } } });
+        chat.send('Where are you?');
+        await vi.waitFor(() => expect(chat.element.querySelectorAll('img.aparte-place__tile')).toHaveLength(9), { timeout: 5000 });
+        expect(chat.element.querySelectorAll('img.aparte-place__tile')[4]!.getAttribute('src')).toBe('https://tiles.example/16/33192/22542.png');
+        expect(chat.element.querySelector('.aparte-place__credit')?.textContent).toBe('© Example');
+    });
+
+    it('draws the place card on its own drawn map, fetching nothing, without those options', async () => {
+        n8n({ reply: 'We are here:\n```card-place\n{"name":"Demo studio","coordinates":{"lat":48.8686,"lng":2.331}}\n```' });
+        const chat = mount({ loadPreviousSession: false });
+        chat.send('Where are you?');
+        await vi.waitFor(() => expect(chat.element.querySelector('.aparte-place__marker')).not.toBeNull(), { timeout: 5000 });
+        expect(chat.element.querySelector('img.aparte-place__tile')).toBeNull();
+    });
+
     it('shows the JSON of a block whose JSON does not parse, rather than nothing', async () => {
         n8n({ reply: 'Here:\n```card-weather\n{"a":\n```' });
         const chat = mount({ loadPreviousSession: false });

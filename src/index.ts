@@ -8,6 +8,7 @@
  */
 export { createChat } from './create-chat.js';
 export type { Chat, ChatOptions, ChatResponse } from './create-chat.js';
+export type { CardOptions } from './cards.js';
 export type { ChatStrings } from './strings.js';
 // The card kit, from this module: a page that loads the widget from a CDN takes `defineCard`
 // here, so its own card and the chat share one aparté. Loaded from a second URL, the kit would

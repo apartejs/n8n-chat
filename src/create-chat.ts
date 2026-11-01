@@ -12,7 +12,7 @@ import { AparteClient, AparteConfig, AparteError, AparteErrorCode, attachConfig,
 import type { AparteLauncher, AparteLocale, AparteMessage, AparteSegment, AparteStreamRunner } from '@aparte/core';
 import { setupMarkedStreamingProvider } from '@aparte/plugin-marked/streaming';
 import { createN8nRunner, loadN8nHistory, setupN8nButtons } from '@aparte/runner-n8n';
-import { setupCards } from './cards.js';
+import { setupCards, type CardOptions } from './cards.js';
 import { N8N_ICONS } from './icons.js';
 import { initialMessagesFor, loadLocale, stringsFor } from './strings.js';
 import type { ChatStrings } from './strings.js';
@@ -159,9 +159,17 @@ export interface ChatOptions {
      * Draw a ```card-<name> code block of JSON in an answer as that rich card (`true` by
      * default): weather, items, product, place, stats, order, stock, plan, score, media,
      * link. Each card's code is fetched the first time it appears. `false` shows the block as
-     * code, as n8n's own widget does.
+     * code, as n8n's own widget does. An object turns them on with each card's own options,
+     * handed to it when it loads.
+     *
+     * @example
+     * // The place card on real map tiles (the drawn map, and no request, without them).
+     * createChat({ webhookUrl, cards: { place: {
+     *   mapTiles: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+     *   mapAttribution: '© OpenStreetMap contributors',
+     * } } });
      */
-    cards?: boolean;
+    cards?: boolean | CardOptions;
     /**
      * Extend the chat with aparté's plugins and your own cards: called once with the widget's
      * config, before the first message. What it returns, if a function, runs on `destroy()`.
@@ -342,7 +350,7 @@ export function createChat(options: ChatOptions): Chat {
     // their labels; n8n's Block User Input leaves no field to write in instead.
     setupN8nButtons(config);
     // A card the workflow writes into its answer: drawn, its code fetched the first time.
-    const stopCards = options.cards === false ? undefined : setupCards(config);
+    const stopCards = options.cards === false ? undefined : setupCards(config, typeof options.cards === 'object' ? options.cards : {});
     // An error is core's card: a sentence in the visitor's language, chosen by its code, and
     // the message (what to change in n8n) on the console for the page's developer. One that
     // the workflow itself reported keeps its words too, under the sentence: they say what
