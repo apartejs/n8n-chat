@@ -13,10 +13,11 @@ weather. [See it live](https://n8n-chat.apartejs.dev).
 
 - Rich cards your workflow writes as text: weather, order and booking, product, place, list, key
   figures, stock, plan, score, media, link. n8n's own chat shows the same answer as a code block.
+- Extensible: your own cards, and aparté's plugins (maths, diagrams, charts) through `setup`.
 - Every option of `@n8n/chat` 1.43, the same defaults, the same session in the browser — and the
   Chat nodes' messages and buttons of a workflow that answers through response nodes.
 - Ten languages, keyboard and screen-reader access, readable contrast, a dark scheme.
-- About 100 KB (brotli) on the first load, against about 465 KB.
+- About 143 KB compressed on the first load, against about 471 KB (measured 2026-10-31, `@n8n/chat` 1.44.7).
 - A handle to drive it from your page: `open`, `close`, `toggle`, `send`, `reset`, `setDisabled`,
   `destroy`.
 - MIT.
@@ -26,9 +27,9 @@ weather. [See it live](https://n8n-chat.apartejs.dev).
 ### From a CDN — no build step
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.2.0/dist/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.0/dist/style.css">
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.2.0/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.0/dist/cdn/n8n-chat.js';
 
   createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
 </script>
@@ -58,10 +59,10 @@ Replace the stylesheet and the import; the call stays as it is:
 
 ```diff
 - <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
-+ <link href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.2.0/dist/style.css" rel="stylesheet" />
++ <link href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.0/dist/style.css" rel="stylesheet" />
   <script type="module">
 -   import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
-+   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.2.0/dist/cdn/n8n-chat.js';
++   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.0/dist/cdn/n8n-chat.js';
     createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
   </script>
 ```
@@ -108,7 +109,9 @@ memory on the agent only, n8n answers that request with an error.
 | `messageHistory` | a conversation to show when n8n has none (text, `type: 'component'`, `transparent`) | — |
 | `messageComponents` | functions that draw `type: 'component'` history messages | — |
 | `metadata` | sent with every message, as `metadata` in the trigger's output | — |
-| `allowFileUploads`, `allowedFilesMimeTypes` | let the person attach files, and which | `false`, any |
+| `allowFileUploads`, `allowedFilesMimeTypes` | let the person attach files, and which (`'image/*,application/pdf'`, extensions too) | `false`, any |
+| `cards` | draw the ` ```card-<name> ` blocks of an answer as [cards](#rich-cards) | `true` |
+| `setup` | `(config) => stop?`: aparté's plugins and your own cards, on this chat ([below](#your-own-cards-and-apartés-plugins)) | — |
 | `enableMessageActions` | "Repost" and "Reuse" on the person's own messages | `false` |
 | `disabled` | block the input (`true`, or n8n's `{ value }`) | `false` |
 | `beforeMessageSent`, `afterMessageSent` | hooks around each message | — |
@@ -178,6 +181,91 @@ write JSON: it is exact every time, and a setting can turn it off for a chat tha
 cards. The [shop and booking workflows](https://n8n-chat.apartejs.dev/#workflows) do it that way.
 `cards: false` shows the blocks as code.
 
+## Your own cards, and aparté's plugins
+
+The widget is built with [aparté](https://apartejs.dev), and `setup` hands you its config: anything
+aparté does, this chat can do. A card of your own is a `defineCard`, and your workflow sends it as
+` ```card-<its name> `:
+
+```js
+import { createChat, defineCard, el } from '@aparte/n8n-chat';
+
+const ticket = defineCard({
+  name: 'ticket',
+  variants: ['card'],
+  // A card draws its own padding, from the kit's variable, as the shipped cards do.
+  styles: '.aparte-ticket-card { padding: var(--aparte-rich-card-padding) } .aparte-ticket-card .id { font-weight: 600 }',
+  icon: '<svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z" fill="none" stroke="currentColor"/></svg>',
+  normalize: (raw) => (raw?.id ? { id: String(raw.id), subject: String(raw.subject ?? ''), status: raw.status } : null),
+  render: (t) => [el('span', { class: 'id', text: t.id }), el('p', { text: t.subject }), el('small', { text: t.status })],
+  skeleton: () => [],
+  label: (t) => `Ticket ${t?.id ?? ''}`,
+  fallback: (t) => `Ticket ${t.id}: ${t.subject}`,
+});
+
+createChat({
+  webhookUrl: '…',
+  setup: (config) => ticket.setup({ config }),
+});
+```
+
+Take `defineCard` from the widget's own module, as above, and from the same URL when you load
+it from a CDN (`…/@aparte/n8n-chat@0.3.0/dist/cdn/n8n-chat.js`): the card and the chat then share
+one copy of aparté. A kit loaded from another URL keeps its cards where the chat never looks.
+
+````md
+Your ticket is open.
+
+```card-ticket
+{ "id": "T-42", "subject": "Refund for order 1001", "status": "Waiting for us" }
+```
+````
+
+The same `setup` adds aparté's plugins — maths, diagrams, charts — each in one line:
+
+```js
+import { setupKatex } from '@aparte/plugin-katex';
+import 'katex/dist/katex.min.css'; // KaTeX's own sheet: without it a formula shows twice
+import { setupMermaid } from '@aparte/plugin-mermaid';
+
+createChat({
+  webhookUrl: '…',
+  setup: (config) => {
+    const stops = [setupKatex({}, config), setupMermaid({}, config)];
+    return () => stops.forEach((stop) => stop());
+  },
+});
+```
+
+What `setup` returns, if a function, runs on `destroy()`.
+
+### All of aparté, at three levels
+
+The widget's options keep `@n8n/chat`'s names so a page switches without rewriting, but everything
+underneath is aparté, and you can reach it:
+
+- **The config** — `setup(config)` hands you the chat's own `AparteConfig`: plugins, cards, segment
+  and tool renderers, icons (`config.registerIcons`), the locale (`config.setLocale`), the actions on a
+  message (`config.registerAction`). See the [configuration guide](https://apartejs.dev/guides/customization/).
+- **The elements** — `chat.element` is the widget's root; the chat inside it is aparté's
+  `<aparte-chat>`, its field `<aparte-composer>`, and their attributes are theirs to set:
+
+  ```js
+  const chat = createChat({ webhookUrl: '…' });
+  chat.element.querySelector('aparte-composer')?.setAttribute('placeholder', 'Ask about your order…');
+  ```
+- **The look** — aparté's `--aparte-*` variables, beside n8n's `--chat--*` ones:
+
+  ```css
+  /* n8n's variables for what n8n's widget already styles; aparté's for the rest. */
+  .aparte-n8n { --chat--message--border-radius: 14px; --aparte-font-family: 'Inter', sans-serif; }
+  /* The theme maps some aparté tokens from n8n's on the chat itself: set those there. */
+  .aparte-n8n aparte-chat { --aparte-radius-input: 20px; }
+  ```
+
+What does not apply here is what needs the agent's loop in the page — a tool run in the browser, an
+approval of a tool call: an n8n workflow runs its tools itself, on n8n.
+
 ## The page the visitor is on
 
 `metadata` is sent with every message and reaches the workflow as `$json.metadata`. Send the page,
@@ -221,11 +309,11 @@ so the page puts a fresh token in `metadata` before every message.
 2. In the page:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.2.0/dist/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.0/dist/style.css">
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
 <div id="turnstile"></div>
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.2.0/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.3.0/dist/cdn/n8n-chat.js';
 
   // A Turnstile token is single-use and lasts five minutes: ask for a new one before each message.
   let widgetId;
@@ -304,7 +392,7 @@ or Angular components, inside an `.aparte-n8n` element.
 
 ## Compared with `@n8n/chat`
 
-| | `@n8n/chat` 1.43 | `@aparte/n8n-chat` |
+| | `@n8n/chat` (options checked on 1.43.3, weight on 1.44.7) | `@aparte/n8n-chat` |
 | --- | --- | --- |
 | Drive it from the page | — | `open`, `close`, `toggle`, `send`, `reset`, `setDisabled`, `destroy` |
 | A new conversation | not until the browser's storage is cleared | `reset()` |
@@ -315,7 +403,7 @@ or Angular components, inside an `.aparte-n8n` element.
 | Contrast of the visitor's bubble | 2.55:1 | 4.7:1 (WCAG AA) |
 | Dark scheme | — | ✓ |
 | Rich cards | the JSON as text | drawn: order, booking, product, weather… |
-| Weight, first load (brotli) | ~465 KB | ~100 KB, +~103 KB with the first code block |
+| Weight, first load (compressed) | ~471 KB | ~143 KB |
 | License | Sustainable Use License | MIT |
 
 ## Versions

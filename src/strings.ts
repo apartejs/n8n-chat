@@ -5,7 +5,7 @@
  * locale for the same language, loaded when the widget mounts: a page that speaks one
  * language downloads that one.
  *
- * Nine languages, every one written left to right. The eight beyond English were written
+ * Ten languages, every one written left to right. The nine beyond English were written
  * without a native speaker's review, in the register `@aparte/locales` uses for each.
  */
 import type { AparteLocale } from '@aparte/core';

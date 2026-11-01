@@ -23,8 +23,12 @@ import type { ChatStrings } from './strings.js';
  * a link is; a URL that still is not one is said at once, by name.
  */
 function absoluteUrl(url: string): string {
+    // Missing or empty would read as the page itself — a silent 404 on every message.
+    if (typeof url !== 'string' || !url.trim()) {
+        throw new TypeError("[aparte] n8n: createChat needs webhookUrl, the Chat Trigger's production URL, the one that ends in /chat.");
+    }
     try {
-        return new URL(url, typeof location === 'undefined' ? undefined : location.href).href;
+        return new URL(url, typeof document === 'undefined' ? undefined : document.baseURI).href;
     } catch {
         throw new TypeError(`[aparte] n8n: webhookUrl "${url}" is not a URL. Use the Chat Trigger's production URL, the one that ends in /chat.`);
     }
@@ -81,7 +85,7 @@ export interface ChatOptions {
     /**
      * The language, as a tag (`'de'`, `'pt-BR'`, `'fr-CA'`): the chrome's words come from
      * `i18n[defaultLanguage]` over the built-in ones, the chat's own from aparté's locale,
-     * loaded for that language alone. Nine ship, all left to right: English, French, Spanish,
+     * loaded for that language alone. Ten ship, all left to right: English, French, Spanish,
      * Portuguese (Brazil), German, Italian, Russian, Japanese, Korean and Chinese
      * (Simplified); another tag reads in English, or in the `locale` you give.
      * @default 'en'
@@ -105,9 +109,9 @@ export interface ChatOptions {
      */
     locale?: AparteLocale;
     /** Let the person attach files; n8n receives them as `files`. @default false */
-    allowFileUploads?: boolean;
+    allowFileUploads?: boolean | { value: boolean };
     /** What the file picker offers, as an `accept` list (`'image/*,.pdf'`). @default any */
-    allowedFilesMimeTypes?: string;
+    allowedFilesMimeTypes?: string | { value: string };
     /** Accepted for compatibility: a streamed answer and a whole one are both read. */
     enableStreaming?: boolean;
     /** Called with the message before it is sent, and awaited. */
@@ -158,6 +162,15 @@ export interface ChatOptions {
      * code, as n8n's own widget does.
      */
     cards?: boolean;
+    /**
+     * Extend the chat with aparté's plugins and your own cards: called once with the widget's
+     * config, before the first message. What it returns, if a function, runs on `destroy()`.
+     *
+     * @example
+     * import { setupKatex } from '@aparte/plugin-katex';
+     * createChat({ webhookUrl, setup: (config) => setupKatex({}, config) });
+     */
+    setup?: (config: AparteConfig) => void | (() => void);
 }
 
 /** A `messageHistory` entry: text, or a component drawn by `messageComponents`. */
@@ -297,6 +310,8 @@ export function createChat(options: ChatOptions): Chat {
     const instance = ++instances;
     const titleId = `aparte-n8n-title-${instance}`;
 
+    // A visitor who comes back to a conversation: n8n's widget skips its welcome screen for them.
+    const returning = loadPrevious && !options.sessionId && Boolean(read(STORAGE_KEY));
     let sessionId = options.sessionId ?? (loadPrevious ? read(STORAGE_KEY) : undefined) ?? uuid();
     if (loadPrevious && !options.sessionId) write(STORAGE_KEY, sessionId);
 
@@ -307,8 +322,11 @@ export function createChat(options: ChatOptions): Chat {
     // switches, as it does on any locale change.
     if (options.locale) config.setLocale(options.locale);
     let destroyed = false;
+    // The locale as it stands before the page's `setup`: if `setup` sets its own, the language
+    // loaded afterwards must not replace it.
+    let beforeSetup = config.getLocale();
     void loadLocale(language)?.then((locale) => {
-        if (!destroyed && !options.locale) config.setLocale(locale);
+        if (!destroyed && !options.locale && config.getLocale() === beforeSetup) config.setLocale(locale);
     }, (error: unknown) => console.warn("[aparte] n8n: the chat's language could not be loaded; it stays in English.", error));
     // n8n's look in the icons too: a filled bubble on the button, a chevron once open.
     config.registerIcons(N8N_ICONS);
@@ -352,6 +370,10 @@ export function createChat(options: ChatOptions): Chat {
         highlighter ??= import('./highlight.js').then((m) => m.createHighlighter());
         return (await highlighter)(code, lang);
     });
+    // The page's own, last: aparté's plugins, its own cards, and its own Markdown or highlight
+    // provider over the widget's — on this chat's config alone.
+    beforeSetup = config.getLocale();
+    const stopSetup = options.setup?.(config);
 
     // ── The markup ─────────────────────────────────────────────────────────────────────
     const card = el('section', 'aparte-n8n__window');
@@ -393,10 +415,13 @@ export function createChat(options: ChatOptions): Chat {
     const shell = el('div', 'aparte-composer-shell');
     const row = el('div', 'aparte-composer-row');
     row.append(el('aparte-composer-input'));
-    if (options.allowFileUploads) {
+    // n8n's widget takes these as plain values or as Vue refs (`{ value }`); so does this one.
+    const allowFiles = typeof options.allowFileUploads === 'object' ? options.allowFileUploads?.value : options.allowFileUploads;
+    const acceptFiles = typeof options.allowedFilesMimeTypes === 'object' ? options.allowedFilesMimeTypes?.value : options.allowedFilesMimeTypes;
+    if (allowFiles) {
         shell.append(el('aparte-composer-attachments'));
         const add = el('aparte-composer-add-attachment');
-        if (options.allowedFilesMimeTypes) add.setAttribute('accept', options.allowedFilesMimeTypes);
+        if (acceptFiles) add.setAttribute('accept', acceptFiles);
         // After the input, beside send: where n8n's widget puts its paperclip.
         row.append(add);
     }
@@ -411,7 +436,7 @@ export function createChat(options: ChatOptions): Chat {
     if (strings.footer) card.append(el('p', 'aparte-n8n__footer', strings.footer));
 
     let welcome: HTMLElement | undefined;
-    if (options.showWelcomeScreen) {
+    if (options.showWelcomeScreen && !returning) {
         welcome = el('div', 'aparte-n8n__welcome');
         const start = el('button', 'aparte-btn aparte-btn--primary aparte-btn--solid aparte-n8n__start', strings.getStarted);
         start.type = 'button';
@@ -687,12 +712,15 @@ export function createChat(options: ChatOptions): Chat {
 
     const launcher = () => (mode === 'window' ? (root as AparteLauncher) : undefined);
     const destroy = () => {
+        // Once: a second call would run the page's own teardown again.
+        if (destroyed) return;
         destroyed = true;
         historyRequest?.abort();
         queued.length = 0;
         window.removeEventListener('aparte-message-aborted', onStopped);
         client.stop();
         stopCards?.();
+        if (typeof stopSetup === 'function') stopSetup();
         root.remove();
     };
 

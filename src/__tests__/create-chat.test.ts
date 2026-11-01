@@ -7,6 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { AparteMessage } from '@aparte/core';
+import { defineCard, el } from '@aparte/plugin-cards';
 import { createChat } from '../index.js';
 import type { Chat, ChatOptions } from '../index.js';
 
@@ -218,6 +219,42 @@ describe('createChat: the conversation', () => {
         await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
         expect(String(fetch.mock.calls[0]![0])).toBe(new URL('/webhook/demo/chat', location.href).href);
         expect(() => createChat({ webhookUrl: 'http://' })).toThrow(/is not a URL/);
+        // Missing (a misspelt option) or empty would post to the page itself, silently.
+        expect(() => createChat({} as ChatOptions)).toThrow(/needs webhookUrl/);
+        expect(() => createChat({ webhookUrl: '  ' })).toThrow(/needs webhookUrl/);
+    });
+
+    it("keeps the locale setup gives, over the language's loaded after it", async () => {
+        vi.stubGlobal('fetch', vi.fn(async () => new Response('{"message":"boom"}', { status: 500 })));
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        const chat = mount({
+            loadPreviousSession: false, defaultLanguage: 'de',
+            setup: (config) => config.setLocale({ ...config.getLocale(), error: 'MEIN-FEHLER' }),
+        });
+        // German is loaded after setup ran; it must not replace the page's own word.
+        await new Promise((r) => setTimeout(r, 100));
+        chat.send('x');
+        await vi.waitFor(() => expect(chat.element.querySelector('.aparte-alert__title')?.textContent).toBe('MEIN-FEHLER'), { timeout: 5000 });
+    });
+
+    it("takes n8n's ref forms for the file options, as n8n's widget does", () => {
+        n8n();
+        const chat = mount({ loadPreviousSession: false, allowFileUploads: { value: true }, allowedFilesMimeTypes: { value: 'image/*' } });
+        const add = chat.element.querySelector('aparte-composer-add-attachment');
+        expect(add).not.toBeNull();
+        expect(add!.getAttribute('accept')).toBe('image/*');
+    });
+
+    it("skips the welcome screen for a visitor who comes back, as n8n's widget does", () => {
+        n8n();
+        localStorage.setItem('n8n-chat/sessionId', 'returning-visitor');
+        const back = mount({ showWelcomeScreen: true });
+        expect(back.element.querySelector('.aparte-n8n__welcome')).toBeNull();
+        back.destroy();
+        localStorage.clear();
+        const first = mount({ showWelcomeScreen: true });
+        expect(first.element.querySelector('.aparte-n8n__welcome')).not.toBeNull();
     });
 
     it('draws a card-weather code block in the answer as its rich card', async () => {
@@ -235,6 +272,30 @@ describe('createChat: the conversation', () => {
         const chat = mount({ loadPreviousSession: false });
         chat.send('Anything?');
         await vi.waitFor(() => expect(chat.element.querySelector('aparte-card-fence')?.textContent?.trim()).toBe('{"a":'), { timeout: 5000 });
+    });
+
+    it('draws a card of your own, defined in setup, from its block', async () => {
+        n8n({ reply: 'Your ticket:\n```card-ticket\n{"id":"T-42","subject":"Refund"}\n```' });
+        let stopped = 0;
+        const ticket = defineCard<{ id: string; subject: string }, 'card'>({
+            name: 'ticket', variants: ['card'], styles: '', icon: '<svg></svg>',
+            normalize: (raw: any) => (raw?.id ? { id: String(raw.id), subject: String(raw.subject ?? '') } : null),
+            render: (t) => [el('strong', { class: 'ticket-id', text: t.id }), el('span', { text: t.subject })],
+            skeleton: () => [], label: (t) => `Ticket ${t?.id ?? ''}`, fallback: (t) => `Ticket ${t.id}`,
+        });
+        const chat = mount({
+            loadPreviousSession: false,
+            setup: (config) => {
+                const stop = ticket.setup({ config });
+                return () => { stop(); stopped++; };
+            },
+        });
+        chat.send('My ticket?');
+        await vi.waitFor(() => expect(chat.element.querySelector('.ticket-id')?.textContent).toBe('T-42'), { timeout: 5000 });
+        chat.destroy();
+        // Once, however many times destroy is called.
+        chat.destroy();
+        expect(stopped).toBe(1);
     });
 
     it("leaves a card block as code with cards: false, as n8n's own widget does", async () => {

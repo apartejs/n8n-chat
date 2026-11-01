@@ -9,3 +9,8 @@
 export { createChat } from './create-chat.js';
 export type { Chat, ChatOptions, ChatResponse } from './create-chat.js';
 export type { ChatStrings } from './strings.js';
+// The card kit, from this module: a page that loads the widget from a CDN takes `defineCard`
+// here, so its own card and the chat share one aparté. Loaded from a second URL, the kit would
+// keep its cards in a registry the chat never reads.
+export { defineCard, el, glyph, safeUrl, webUrl, formatNumber, formatPrice, formatDay, formatWhen } from '@aparte/plugin-cards';
+export type { CardDefinition, CardContext, AparteCardSegment } from '@aparte/plugin-cards';
