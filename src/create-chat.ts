@@ -87,7 +87,8 @@ export interface ChatOptions {
      * `i18n[defaultLanguage]` over the built-in ones, the chat's own from aparté's locale,
      * loaded for that language alone. Ten ship, all left to right: English, French, Spanish,
      * Portuguese (Brazil), German, Italian, Russian, Japanese, Korean and Chinese
-     * (Simplified); another tag reads in English, or in the `locale` you give.
+     * (Simplified); another tag reads in English, or in the `locale` you give. A right-to-left
+     * tag (`'ar'`, `'he'`, `'fa'`…) turns the whole widget right to left, whatever the page.
      * @default 'en'
      */
     defaultLanguage?: string;
@@ -234,6 +235,9 @@ export interface Chat {
 }
 
 const STORAGE_KEY = 'n8n-chat/sessionId';
+
+/** The languages written right to left, by their primary tag: Arabic, Hebrew, Persian, Urdu… */
+const RIGHT_TO_LEFT = /^(ar|arc|ckb|dv|fa|he|ku-arab|ps|sd|ug|ur|yi)(-|$)/i;
 
 type Viewport = HTMLElement & { setMessages(messages: AparteMessage[]): void };
 type ChatElement = HTMLElement & { viewport: Viewport | null };
@@ -498,6 +502,11 @@ export function createChat(options: ChatOptions): Chat {
     if (scheme !== 'auto') root.setAttribute('data-aparte-theme', scheme);
     // Its own language, so a screen reader reads a French widget on an English page in French.
     root.setAttribute('lang', language);
+    // And its own direction: an Arabic widget reads right to left on a left-to-right page, its
+    // header and launcher included, where a locale alone turned only the messages and the input.
+    // Without either, it follows the page.
+    const direction = options.locale?.direction ?? (RIGHT_TO_LEFT.test(language) ? 'rtl' : undefined);
+    if (direction) root.setAttribute('dir', direction);
     if (mode === 'window') {
         // On a phone the open chat covers the page: a modal dialog to assistive technology too,
         // not only to Tab.

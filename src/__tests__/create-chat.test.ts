@@ -6,6 +6,7 @@
  * (see @aparte/runner-n8n's recorded fixtures).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { APARTE_DEFAULT_LOCALE } from '@aparte/core';
 import type { AparteMessage } from '@aparte/core';
 import { defineCard, el } from '@aparte/plugin-cards';
 import { createChat } from '../index.js';
@@ -192,6 +193,18 @@ describe('createChat: the widget, as n8n draws it', () => {
         expect(contents(chat)[1]).toEqual(['assistant', 'Ich heiße Nathan. Wie kann ich dir heute helfen?']);
         await vi.waitFor(() => expect(chat.element.querySelector('.aparte-launcher__button')?.getAttribute('aria-label')).toBe('Chat öffnen'));
         expect(chat.element.getAttribute('lang')).toBe('de-AT');
+        expect(chat.element.hasAttribute('dir')).toBe(false);
+    });
+
+    it('turns right to left for a right-to-left language, or a locale that says so; else it follows the page', () => {
+        n8n();
+        const arabic = mount({ loadPreviousSession: false, defaultLanguage: 'ar', i18n: { ar: { title: 'مرحبا' } } });
+        expect(arabic.element.getAttribute('dir')).toBe('rtl');
+        expect(arabic.element.querySelector('.aparte-n8n__title')?.textContent).toBe('مرحبا');
+        expect(mount({ loadPreviousSession: false, defaultLanguage: 'he-IL' }).element.getAttribute('dir')).toBe('rtl');
+        expect(mount({ loadPreviousSession: false, defaultLanguage: 'hr' }).element.hasAttribute('dir')).toBe(false);
+        const locale = { ...APARTE_DEFAULT_LOCALE, tag: 'sy', direction: 'rtl' as const };
+        expect(mount({ loadPreviousSession: false, defaultLanguage: 'sy', locale }).element.getAttribute('dir')).toBe('rtl');
     });
 
     it('leaves the subtitle out when it is empty, shows a footer when there is one, and shows the given first messages', () => {

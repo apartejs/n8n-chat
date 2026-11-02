@@ -7,8 +7,8 @@ your call. And your workflow can answer with **rich cards** — an order, a book
 weather — and offer **quick replies** the visitor clicks. [See it live](https://n8n-chat.apartejs.dev).
 
 <p>
-  <img src="https://raw.githubusercontent.com/apartejs/n8n-chat/v0.5.0/docs/widget-card-order.png" alt="The widget answering where order 1001 is, with the order's card: its items, its status and its total, and a small Powered by aparté line under the input" width="300">
-  <img src="https://raw.githubusercontent.com/apartejs/n8n-chat/v0.5.0/docs/widget-card-dark.png" alt="The same widget in its dark scheme, answering about order 1002 with its card" width="300">
+  <img src="https://raw.githubusercontent.com/apartejs/n8n-chat/v0.6.0/docs/widget-card-order.png" alt="The widget answering where order 1001 is, with the order's card: its items, its status and its total, and a small Powered by aparté line under the input" width="300">
+  <img src="https://raw.githubusercontent.com/apartejs/n8n-chat/v0.6.0/docs/widget-card-dark.png" alt="The same widget in its dark scheme, answering about order 1002 with its card" width="300">
 </p>
 
 - Rich cards your workflow writes as text: weather, order and booking, product, place, list, key
@@ -29,9 +29,9 @@ weather — and offer **quick replies** the visitor clicks. [See it live](https:
 ### From a CDN — no build step
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.5.0/dist/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.6.0/dist/style.css">
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.5.0/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.6.0/dist/cdn/n8n-chat.js';
 
   createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
 </script>
@@ -61,10 +61,10 @@ Replace the stylesheet and the import; the call stays as it is:
 
 ```diff
 - <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
-+ <link href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.5.0/dist/style.css" rel="stylesheet" />
++ <link href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.6.0/dist/style.css" rel="stylesheet" />
   <script type="module">
 -   import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
-+   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.5.0/dist/cdn/n8n-chat.js';
++   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.6.0/dist/cdn/n8n-chat.js';
     createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
   </script>
 ```
@@ -259,7 +259,7 @@ createChat({
 ```
 
 Take `defineCard` from the widget's own module, as above, and from the same URL when you load
-it from a CDN (`…/@aparte/n8n-chat@0.5.0/dist/cdn/n8n-chat.js`): the card and the chat then share
+it from a CDN (`…/@aparte/n8n-chat@0.6.0/dist/cdn/n8n-chat.js`): the card and the chat then share
 one copy of aparté. A kit loaded from another URL keeps its cards where the chat never looks.
 
 ````md
@@ -358,11 +358,11 @@ so the page puts a fresh token in `metadata` before every message.
 2. In the page:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.5.0/dist/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.6.0/dist/style.css">
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
 <div id="turnstile"></div>
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.5.0/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.6.0/dist/cdn/n8n-chat.js';
 
   // A Turnstile token is single-use and lasts five minutes: ask for a new one before each message.
   let widgetId;
@@ -416,9 +416,67 @@ only: with file uploads, check that your agent still receives the files after th
 
 ## Languages
 
-English, French, Spanish, Portuguese (Brazil), German, Italian, Russian, Japanese, Korean and
-Chinese (Simplified). A page downloads only the language it uses. Set `defaultLanguage`; override
-any word of the header or the input with `i18n`; give a whole `locale` for another language.
+Ten ship: English, French, Spanish, Portuguese (Brazil), German, Italian, Russian, Japanese, Korean
+and Chinese (Simplified). A page downloads only the language it uses.
+
+### Pick one
+
+```js
+createChat({
+  webhookUrl: '…',
+  defaultLanguage: 'fr', // a tag: 'de', 'pt-BR', 'zh-CN'… 'fr-CA' reads in French
+});
+```
+
+The header, the first messages, the input and the chat's own words (its buttons, its error card,
+what a screen reader hears) all switch. To follow the visitor's browser, pass
+`defaultLanguage: navigator.language`: a language not shipped reads in English.
+
+### Change a few words
+
+`i18n` takes the header's and the input's words by language, over the built-in ones:
+
+```js
+createChat({
+  webhookUrl: '…',
+  defaultLanguage: 'fr',
+  i18n: { fr: { title: 'Bonjour 👋', subtitle: 'Une question sur votre commande ?', inputPlaceholder: 'Votre question…' } },
+  initialMessages: ['Bonjour ! Comment puis-je vous aider ?'],
+});
+```
+
+The keys: `title`, `subtitle`, `footer`, `inputPlaceholder`, `getStarted`, `closeButtonTooltip`,
+`poweredBy` (`{aparte}` stands for the link), `repostButton` and `reuseButton`.
+
+### Another language, right to left included
+
+A language that does not ship takes its words from you: `i18n` for the header and the input, and
+aparté's locale, through `setup`, for the chat's own. Arabic, Hebrew, Persian, Urdu and the other
+right-to-left languages turn the whole widget right to left from their tag alone — header, messages,
+input, and the launcher, which moves to the bottom left — even on a left-to-right page. Code, a
+formula or an English answer inside it still read left to right.
+
+```js
+createChat({
+  webhookUrl: '…',
+  defaultLanguage: 'ar',
+  i18n: {
+    ar: {
+      title: 'مرحبا 👋',
+      subtitle: 'نحن هنا لمساعدتك.',
+      inputPlaceholder: 'اكتب سؤالك…',
+      closeButtonTooltip: 'إغلاق',
+      poweredBy: 'بدعم من {aparte}',
+    },
+  },
+  initialMessages: ['مرحبا! كيف يمكنني مساعدتك اليوم؟'],
+  // The chat's own words, over the English ones: the type lists every key.
+  setup: (config) => config.setLocale({ ...config.getLocale(), tag: 'ar', sendButton: 'إرسال', copy: 'نسخ' }),
+});
+```
+
+A page that is right to left already (`<html dir="rtl">`) needs nothing more: the widget follows it in
+any language.
 
 ## Colors
 
