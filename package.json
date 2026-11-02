@@ -43,12 +43,12 @@
         "test:coverage": "vitest run --coverage"
     },
     "dependencies": {
-        "@aparte/core": "0.32.0",
-        "@aparte/locales": "0.32.0",
-        "@aparte/plugin-cards": "0.32.0",
-        "@aparte/plugin-marked": "0.32.0",
-        "@aparte/plugin-shiki": "0.32.0",
-        "@aparte/runner-n8n": "0.32.0",
+        "@aparte/core": "0.32.1",
+        "@aparte/locales": "0.32.1",
+        "@aparte/plugin-cards": "0.32.1",
+        "@aparte/plugin-marked": "0.32.1",
+        "@aparte/plugin-shiki": "0.32.1",
+        "@aparte/runner-n8n": "0.32.1",
         "@shikijs/langs": "4.5.0",
         "@shikijs/themes": "4.5.0",
         "marked": "18.0.6",
