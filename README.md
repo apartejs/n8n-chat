@@ -7,8 +7,8 @@ your call. And your workflow can answer with **rich cards** — an order, a book
 weather — and offer **quick replies** the visitor clicks. [See it live](https://n8n-chat.apartejs.dev).
 
 <p>
-  <img src="https://raw.githubusercontent.com/apartejs/n8n-chat/v0.6.0/docs/widget-card-order.png" alt="The widget answering where order 1001 is, with the order's card: its items, its status and its total, and a small Powered by aparté line under the input" width="300">
-  <img src="https://raw.githubusercontent.com/apartejs/n8n-chat/v0.6.0/docs/widget-card-dark.png" alt="The same widget in its dark scheme, answering about order 1002 with its card" width="300">
+  <img src="https://raw.githubusercontent.com/apartejs/n8n-chat/v1.0.0/docs/widget-card-order.png" alt="The widget answering where order 1001 is, with the order's card: its items, its status and its total, and a small Powered by aparté line under the input" width="300">
+  <img src="https://raw.githubusercontent.com/apartejs/n8n-chat/v1.0.0/docs/widget-card-dark.png" alt="The same widget in its dark scheme, answering about order 1002 with its card" width="300">
 </p>
 
 - Rich cards your workflow writes as text: weather, order and booking, product, place, list, key
@@ -19,7 +19,7 @@ weather — and offer **quick replies** the visitor clicks. [See it live](https:
 - Every option of `@n8n/chat` 1.43, the same defaults, the same session in the browser — and the
   Chat nodes' messages and buttons of a workflow that answers through response nodes.
 - Ten languages, keyboard and screen-reader access, readable contrast, a dark scheme.
-- About 143 KB compressed on the first load, against about 471 KB (measured 2026-10-31, `@n8n/chat` 1.44.7).
+- About 151 KB compressed on the first load, against about 471 KB (measured 2026-11-07 on 1.0.0; `@n8n/chat` 1.44.7 on 2026-10-31).
 - A handle to drive it from your page: `open`, `close`, `toggle`, `send`, `reset`, `setDisabled`,
   `destroy`.
 - MIT. A small grey "Powered by aparté" line sits under the input, linking to [apartejs.dev](https://apartejs.dev).
@@ -29,9 +29,9 @@ weather — and offer **quick replies** the visitor clicks. [See it live](https:
 ### From a CDN — no build step
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.6.0/dist/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.0/dist/style.css">
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.6.0/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.0/dist/cdn/n8n-chat.js';
 
   createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
 </script>
@@ -61,10 +61,10 @@ Replace the stylesheet and the import; the call stays as it is:
 
 ```diff
 - <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
-+ <link href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.6.0/dist/style.css" rel="stylesheet" />
++ <link href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.0/dist/style.css" rel="stylesheet" />
   <script type="module">
 -   import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
-+   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.6.0/dist/cdn/n8n-chat.js';
++   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.0/dist/cdn/n8n-chat.js';
     createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
   </script>
 ```
@@ -113,6 +113,8 @@ memory on the agent only, n8n answers that request with an error.
 | `metadata` | sent with every message, as `metadata` in the trigger's output | — |
 | `allowFileUploads`, `allowedFilesMimeTypes` | let the person attach files, and which (`'image/*,application/pdf'`, extensions too) | `false`, any |
 | `cards` | draw the ` ```card-<name> ` blocks of an answer as [cards](#cards-and-quick-replies-from-a-text-answer); an object gives a card its options (`{ place: { mapTiles } }`) | `true` |
+| `images` | which [pictures in an answer](#pictures-in-an-answer) load by themselves: every one, or only those from the origins you list (`['https://cdn.example.com']`; the others wait for a click) | every one |
+| `waitingPrefix` | where your n8n serves a Chat node's button links, when the webhook URL does not tell ([buttons](#response-nodes-and-buttons)) | read from the webhook URL |
 | `setup` | `(config) => stop?`: aparté's plugins and your own cards, on this chat ([below](#your-own-cards-and-apartés-plugins)) | — |
 | `enableMessageActions` | "Repost" and "Reuse" on the person's own messages | `false` |
 | `disabled` | block the input (`true`, or n8n's `{ value }`) | `false` |
@@ -155,7 +157,10 @@ not approved — as with n8n's own widget.
 Up to n8n 2.45, Chat nodes run only when the Chat Trigger's **Mode** is **Hosted Chat**; an
 embedded one stops with "Embedded chat is not supported". n8n 2.46 and 3.0 lift that limit and run
 them in **Embedded** mode too; the widget has been tested with Hosted Chat. A button whose link
-leads off your n8n is not shown.
+leads off your n8n is not shown, nor one whose link does not resume the running execution. The
+widget reads where n8n's waiting links live from the webhook URL. Set `waitingPrefix` (a path) when
+they live elsewhere: your own `N8N_ENDPOINT_WEBHOOK_WAIT`, or your own `N8N_ENDPOINT_WEBHOOK` (a
+webhook URL that is not `…/webhook/<id>/chat`), where no button shows until you do.
 
 ## Cards and quick replies, from a text answer
 
@@ -177,8 +182,11 @@ Which day suits you?
 ````
 
 Nothing of the block shows in the message; the replies are the last answer's, a click sends one as
-if it were typed, and they go when a message is sent. A string is both what is shown and what is
-sent; `{ "label": "Another week", "prompt": "Next week, please" }` shows one and sends the other.
+if it were typed, and they go when a message is sent. A string, or an object's `label`, is both what
+is shown and what is sent: a `prompt` beside it is ignored, so a button never sends words the
+visitor did not read. A reply is 1 to 100 visible characters: a blank one, a longer one or one
+holding invisible characters is left out (the console says so), so a label built from data — a
+long product name — is best shortened.
 The [booking workflow](https://n8n-chat.apartejs.dev/#workflows) offers its days and times this way:
 the agent calls a small **Suggest replies** tool, and a Code node writes the block. `replies: false`
 shows the blocks as code.
@@ -259,7 +267,7 @@ createChat({
 ```
 
 Take `defineCard` from the widget's own module, as above, and from the same URL when you load
-it from a CDN (`…/@aparte/n8n-chat@0.6.0/dist/cdn/n8n-chat.js`): the card and the chat then share
+it from a CDN (`…/@aparte/n8n-chat@1.0.0/dist/cdn/n8n-chat.js`): the card and the chat then share
 one copy of aparté. A kit loaded from another URL keeps its cards where the chat never looks.
 
 ````md
@@ -345,6 +353,23 @@ With `allowFileUploads`, the visitor picks, drops or pastes files, and n8n recei
 `files`, as from n8n's widget. A file can be removed with the keyboard; a picture or a file the
 visitor sent opens in a new tab.
 
+## Pictures in an answer
+
+A picture an answer names loads by itself, as in n8n's own widget: nothing to set. If your workflow
+reads content you do not control — e-mails, web pages, a document a visitor sends — name the
+origins your pictures come from. A model steered by such content can write the conversation into a
+picture's address, and the browser fetches it without a click; with `images`, any other picture
+waits behind a link that names its host, until the visitor clicks it. The same list decides a
+media card's video and sound.
+
+```js
+createChat({ webhookUrl: '…', images: ['https://cdn.example.com'] });
+```
+
+An origin is written with its scheme: `'https://cdn.example.com'` (a bare host allows nothing).
+`'self'` is your page's own origin, `true` or `'*'` every picture, `false` none by itself, and a
+function decides each address (`'load'`, `'hold'` or `'drop'`).
+
 ## Keeping bots out
 
 A public Chat Trigger answers anyone who finds its URL, and every answer can cost you a call to
@@ -358,11 +383,11 @@ so the page puts a fresh token in `metadata` before every message.
 2. In the page:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.6.0/dist/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.0/dist/style.css">
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
 <div id="turnstile"></div>
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@0.6.0/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.0/dist/cdn/n8n-chat.js';
 
   // A Turnstile token is single-use and lasts five minutes: ask for a new one before each message.
   let widgetId;
@@ -430,7 +455,9 @@ createChat({
 
 The header, the first messages, the input and the chat's own words (its buttons, its error card,
 what a screen reader hears) all switch. To follow the visitor's browser, pass
-`defaultLanguage: navigator.language`: a language not shipped reads in English.
+`defaultLanguage: navigator.language`: a language not shipped reads in English, left to right,
+until you give its words ([below](#another-language-right-to-left-included)); `i18n` words under
+`ar` serve `ar-SA` too.
 
 ### Change a few words
 
@@ -539,17 +566,23 @@ or Angular components, inside an `.aparte-n8n` element.
 | Drive it from the page | — | `open`, `close`, `toggle`, `send`, `reset`, `setDisabled`, `destroy` |
 | A new conversation | not until the browser's storage is cleared | `reset()` |
 | A tool's steps after a reload | bubbles with raw JSON | left out, as while chatting |
-| An error | the raw message | a sentence in the visitor's language, the workflow's own words under it, what to fix on the console |
+| An error | the raw message | a sentence in the visitor's language; the workflow's own words and what to fix, on the console |
 | Languages | English | ten, loaded one at a time |
 | Keyboard and screen reader | buttons without names | named controls, a labelled window, a modal sheet on a phone |
 | Contrast of the visitor's bubble | 2.55:1 | 4.7:1 (WCAG AA) |
 | Dark scheme | — | ✓ |
 | Rich cards | the JSON as text | drawn: order, booking, product, weather… |
 | Quick replies offered by an answer | the block as code | buttons above the input |
-| Weight, first load (compressed) | ~471 KB | ~143 KB |
+| Weight, first load (compressed) | ~471 KB | ~151 KB |
 | License | Sustainable Use License | MIT |
 
 ## Versions
+
+From 1.0.0 the widget follows semantic versioning: the options of `createChat`, the handle it
+returns, what the module exports (the card kit included), the `i18n` keys, the `--chat--*`
+variables, the `.aparte-n8n` root with its `data-aparte-theme`, and the files a page loads
+(`dist/cdn/n8n-chat.js`, `dist/style.css`, `./theme.css`) keep their names, and what they do, until
+2.0. A security fix may refuse what was accepted in any release, and says so first in its notes.
 
 The widget depends on **exact** versions of aparté's packages, and moves to a newer aparté only in
 a release of its own. Pin the widget's version in a CDN URL and in your `package.json`, and what you
