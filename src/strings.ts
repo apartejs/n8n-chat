@@ -202,9 +202,17 @@ export function shippedLanguage(tag: string): string {
     return Object.keys(LANGUAGES).find((key) => key.split('-')[0]?.toLowerCase() === primary) ?? 'en';
 }
 
+/**
+ * The words the page gave for a language in `i18n`: under its tag, else under its primary
+ * subtag, so `navigator.language`'s `ar-SA` finds the page's `ar`.
+ */
+export function ownStrings(language: string, i18n: Record<string, Partial<ChatStrings>> | undefined): Partial<ChatStrings> | undefined {
+    return i18n?.[language] ?? i18n?.[language.split('-')[0] ?? ''];
+}
+
 /** The chrome's words for a language: the built-in ones under the page's own. */
 export function stringsFor(language: string, i18n: Record<string, Partial<ChatStrings>> | undefined): ChatStrings {
-    return { ...LANGUAGES[shippedLanguage(language)]!.strings, ...(i18n?.[language] ?? {}) };
+    return { ...LANGUAGES[shippedLanguage(language)]!.strings, ...(ownStrings(language, i18n) ?? {}) };
 }
 
 /** n8n's two first messages in a language. */

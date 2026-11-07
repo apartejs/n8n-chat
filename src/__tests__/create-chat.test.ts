@@ -196,12 +196,17 @@ describe('createChat: the widget, as n8n draws it', () => {
         expect(chat.element.hasAttribute('dir')).toBe(false);
     });
 
-    it('turns right to left for a right-to-left language, or a locale that says so; else it follows the page', () => {
+    it('turns right to left for a right-to-left language it speaks, or a locale that says so; else it follows the page', () => {
         n8n();
         const arabic = mount({ loadPreviousSession: false, defaultLanguage: 'ar', i18n: { ar: { title: 'مرحبا' } } });
         expect(arabic.element.getAttribute('dir')).toBe('rtl');
         expect(arabic.element.querySelector('.aparte-n8n__title')?.textContent).toBe('مرحبا');
-        expect(mount({ loadPreviousSession: false, defaultLanguage: 'he-IL' }).element.getAttribute('dir')).toBe('rtl');
+        // navigator.language's region tag finds the page's words under the language alone.
+        const hebrew = mount({ loadPreviousSession: false, defaultLanguage: 'he-IL', i18n: { he: { title: 'שלום' } } });
+        expect(hebrew.element.getAttribute('dir')).toBe('rtl');
+        expect(hebrew.element.querySelector('.aparte-n8n__title')?.textContent).toBe('שלום');
+        // A right-to-left tag with no words written for it reads in English, left to right.
+        expect(mount({ loadPreviousSession: false, defaultLanguage: 'ar-SA' }).element.hasAttribute('dir')).toBe(false);
         expect(mount({ loadPreviousSession: false, defaultLanguage: 'hr' }).element.hasAttribute('dir')).toBe(false);
         const locale = { ...APARTE_DEFAULT_LOCALE, tag: 'sy', direction: 'rtl' as const };
         expect(mount({ loadPreviousSession: false, defaultLanguage: 'sy', locale }).element.getAttribute('dir')).toBe('rtl');

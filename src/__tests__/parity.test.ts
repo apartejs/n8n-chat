@@ -1,6 +1,7 @@
 /**
  * What `@n8n/chat` 1.43.3 does that the widget had to learn: `disabled`, the message actions,
- * `messageComponents`, `transparent`, the arrow keys, and the workflow's own error words.
+ * `messageComponents`, `transparent`, the arrow keys — and, for the workflow's own error words,
+ * what it does instead: the console, not the visitor's screen.
  *
  * Read from n8n's build, not its README, which leaves most of these out.
  */
@@ -125,15 +126,19 @@ describe('n8n parity: the history', () => {
 });
 
 describe('n8n parity: the error', () => {
-    it("shows the workflow's own words under the sentence, without telling the visitor to try again", async () => {
+    it("says the assistant could not answer, without asking to try again, and leaves the workflow's own words to the console", async () => {
         n8n(() => new Response(frames({ type: 'begin', ...meta }, { type: 'error', content: 'This model does not take images.', ...meta }), { status: 200 }));
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         const chat = mount();
         chat.send('What is this?');
         await vi.waitFor(() => expect(chat.element.querySelector('.aparte-segment-error')).not.toBeNull());
         const card = chat.element.querySelector('.aparte-segment-error')!;
         expect(card.getAttribute('data-error-code')).toBe('PROVIDER_ERROR');
         expect(card.querySelector('.aparte-alert__message')?.textContent).toBe('The assistant couldn’t answer this request.');
-        expect(card.querySelector('.aparte-n8n__error-detail')?.textContent).toBe('This model does not take images.');
+        // The words are the workflow's, or a model's: the developer reads them, the visitor does not.
+        expect(card.textContent).not.toContain('This model does not take images.');
+        expect(warn.mock.calls.some((args) => String(args[0]).includes('This model does not take images.'))).toBe(true);
+        warn.mockRestore();
     });
 
     it('keeps the words of any other failure to the console: an HTTP error shows the sentence alone', async () => {
@@ -143,7 +148,6 @@ describe('n8n parity: the error', () => {
         chat.send('Hello?');
         await vi.waitFor(() => expect(chat.element.querySelector('.aparte-segment-error')).not.toBeNull());
         const card = chat.element.querySelector('.aparte-segment-error')!;
-        expect(card.querySelector('.aparte-n8n__error-detail')).toBeNull();
         expect(card.textContent).not.toContain('10.0.0.4');
         warn.mockRestore();
     });
@@ -167,7 +171,7 @@ describe('n8n parity: what an answer holds', () => {
         await vi.waitFor(() => expect(chat.element.querySelector('.aparte-message-content a[href]')).not.toBeNull());
         const link = chat.element.querySelector<HTMLAnchorElement>('.aparte-message-content a[href]')!;
         link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
-        expect(open).toHaveBeenCalledWith('https://bakery.example/menu', '_blank', 'noopener');
+        expect(open).toHaveBeenCalledWith('https://bakery.example/menu', '_blank', 'noopener,noreferrer');
         open.mockClear();
         link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, ctrlKey: true }));
         expect(open).not.toHaveBeenCalled();
@@ -186,3 +190,43 @@ describe('n8n parity: response nodes and what the person sent', () => {
     });
 });
 
+describe('pictures in an answer', () => {
+    const configOf = (chat: Chat) => resolveConfig(chat.element.querySelector('aparte-chat')!);
+
+    it("load by default, as in n8n's widget, with nothing to set", () => {
+        const config = configOf(mount());
+        expect(config.decideImage('https://cdn.example.com/shirt.jpg')).toBe('load');
+        expect(config.decideImage('https://images.unsplash.com/photo.jpg')).toBe('load');
+    });
+
+    it('load only from the hosts `images` names; any other waits for the visitor', () => {
+        const config = configOf(mount({ images: ['https://cdn.example.com'] }));
+        expect(config.decideImage('https://cdn.example.com/shirt.jpg')).toBe('load');
+        expect(config.decideImage('https://attacker.example/c.png?d=secret')).toBe('hold');
+    });
+
+    it("leave the last word to the page's setup", () => {
+        const config = configOf(mount({ setup: (cfg) => cfg.setImagePolicy([]) }));
+        expect(config.decideImage('https://cdn.example.com/shirt.jpg')).toBe('hold');
+    });
+
+    it("draw a remote picture in an answer by default", async () => {
+        n8n(() => new Response(stream('Here it is: ![The linen shirt](https://cdn.example.com/shirt.jpg)'), { status: 200 }));
+        const chat = mount();
+        chat.send('Show me the shirt');
+        await vi.waitFor(() => expect(chat.element.querySelector('.aparte-message-content img[src="https://cdn.example.com/shirt.jpg"]')).not.toBeNull());
+        expect(chat.element.querySelector('.aparte-image-held')).toBeNull();
+    });
+});
+
+describe('`images`, written as a page with no build step writes it', () => {
+    const configOf = (chat: Chat) => resolveConfig(chat.element.querySelector('aparte-chat')!);
+
+    it('reads true as every picture, false as none by itself, and one origin as a list of one', () => {
+        expect(configOf(mount({ images: true })).decideImage('https://cdn.example.com/a.jpg')).toBe('load');
+        expect(configOf(mount({ images: false })).decideImage('https://cdn.example.com/a.jpg')).toBe('hold');
+        const one = configOf(mount({ images: 'https://cdn.example.com' }));
+        expect(one.decideImage('https://cdn.example.com/a.jpg')).toBe('load');
+        expect(one.decideImage('https://elsewhere.example/a.jpg')).toBe('hold');
+    });
+});

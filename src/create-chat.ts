@@ -9,12 +9,12 @@
  * that say what to change in n8n; and no style leaking into the page.
  */
 import { AparteClient, AparteConfig, AparteError, AparteErrorCode, attachConfig, registerSegmentRenderer, setupSuggestionBlocks, uuid } from '@aparte/core';
-import type { AparteLauncher, AparteLocale, AparteMessage, AparteSegment, AparteStreamRunner } from '@aparte/core';
+import type { AparteImagePolicy, AparteLauncher, AparteLocale, AparteMessage, AparteSegment, AparteStreamRunner } from '@aparte/core';
 import { setupMarkedStreamingProvider } from '@aparte/plugin-marked/streaming';
 import { createN8nRunner, loadN8nHistory, setupN8nButtons } from '@aparte/runner-n8n';
 import { setupCards, type CardOptions } from './cards.js';
 import { N8N_ICONS } from './icons.js';
-import { initialMessagesFor, loadLocale, stringsFor } from './strings.js';
+import { initialMessagesFor, loadLocale, ownStrings, stringsFor } from './strings.js';
 import type { ChatStrings } from './strings.js';
 
 /**
@@ -179,6 +179,30 @@ export interface ChatOptions {
      */
     replies?: boolean;
     /**
+     * Which pictures in an answer — and a media card's video and sound — load by themselves:
+     * every one, by default, as in n8n's own widget. A list of origins, each with its scheme
+     * (`'https://cdn.example.com'`; `'self'` for the page's own), loads only those, and any
+     * other waits behind a link until the visitor clicks it. `true` or `'*'` is every one,
+     * `false` none by itself, and a function answers `'load'`, `'hold'` or `'drop'` for each
+     * address. A workflow that reads outside content — an e-mail, a web page, a document — can
+     * be steered into writing the conversation into a picture's address, which the browser then
+     * fetches with no click: naming your origins closes that.
+     *
+     * @default true
+     * @example
+     * createChat({ webhookUrl, images: ['https://cdn.example.com'] });
+     */
+    images?: boolean | string | AparteImagePolicy;
+    /**
+     * The path n8n serves a waiting execution's links under — the links of a Chat node's
+     * buttons — when the webhook URL does not tell: your own `N8N_ENDPOINT_WEBHOOK_WAIT`, or a
+     * webhook URL that is not `…/webhook/<id>/chat` (your own `N8N_ENDPOINT_WEBHOOK`), where no
+     * button is shown until it is set. A button whose link is not under it is not shown.
+     *
+     * @default read from the webhook URL: its path before `/webhook/<id>/chat`, then `/webhook-waiting`
+     */
+    waitingPrefix?: string;
+    /**
      * Extend the chat with aparté's plugins and your own cards: called once with the widget's
      * config, before the first message. What it returns, if a function, runs on `destroy()`.
      *
@@ -243,8 +267,23 @@ type Viewport = HTMLElement & { setMessages(messages: AparteMessage[]): void };
 type ChatElement = HTMLElement & { viewport: Viewport | null };
 type Composer = HTMLElement & { setValue(value: string): void; submit(): void; cancel(): void; readonly streaming: boolean; readonly value: string };
 
-/** An error the workflow itself reported in its answer: its words are the visitor's to read. */
+/**
+ * An error the workflow itself reported in its answer. The visitor reads that the assistant
+ * could not answer; the workflow's own words go to the developer's console, where the runner
+ * writes them.
+ */
 const WORKFLOW_ERROR = 'N8N_WORKFLOW_ERROR' as AparteErrorCode;
+
+/**
+ * `images` as aparté's policy. `true` and `false` read as `cards: false` does — every
+ * picture, or none by itself — and a single origin as a list of one: a page with no build
+ * step writes these, and aparté's list would refuse a boolean or a bare string.
+ */
+function imagePolicyOf(images: ChatOptions['images']): AparteImagePolicy {
+    if (images === undefined || images === true) return ['*'];
+    if (images === false) return [];
+    return typeof images === 'string' ? [images] : images;
+}
 
 /** A `messageHistory` component, carried as a segment so the bubble draws it in its place. */
 interface ComponentSegment { id: string; type: 'n8n-component'; key: string; arguments: Record<string, unknown> }
@@ -336,6 +375,9 @@ export function createChat(options: ChatOptions): Chat {
 
     // ── The config: this widget's own, so nothing on the page's other chats changes ───────
     const config = new AparteConfig();
+    // Every picture an answer names loads, as in n8n's widget, unless the page names its
+    // origins (`images`). Set before `setup`, which can set its own.
+    config.setImagePolicy(imagePolicyOf(options.images));
     // The chat's own words: the page's locale, else the language's, loaded now — a page that
     // speaks German downloads German alone. Until it lands, core's English; then the chat
     // switches, as it does on any locale change.
@@ -366,8 +408,9 @@ export function createChat(options: ChatOptions): Chat {
     const stopReplies = options.replies === false ? undefined : setupSuggestionBlocks(config);
     // An error is core's card: a sentence in the visitor's language, chosen by its code, and
     // the message (what to change in n8n) on the console for the page's developer. One that
-    // the workflow itself reported keeps its words too, under the sentence: they say what
-    // went wrong ("this model does not take images"), which n8n's widget shows as well.
+    // the workflow itself reported says the assistant could not answer, without asking to try
+    // again; its words ("this model does not take images") are the workflow's or a model's,
+    // so they go to the console, not in front of the visitor.
     config.setErrorRenderer(({ message, sentence, code }) => {
         const workflow = code === WORKFLOW_ERROR;
         const card = el('div', 'aparte-segment aparte-alert aparte-alert--danger aparte-segment-error');
@@ -379,7 +422,6 @@ export function createChat(options: ChatOptions): Chat {
             el('div', 'aparte-alert__title', config.t('error')),
             el('div', 'aparte-alert__message', workflow ? config.t('errorNoAnswer') : sentence ?? message),
         );
-        if (workflow && message) body.append(el('p', 'aparte-n8n__error-detail', message));
         card.append(icon, body);
         return card;
     });
@@ -504,8 +546,11 @@ export function createChat(options: ChatOptions): Chat {
     root.setAttribute('lang', language);
     // And its own direction: an Arabic widget reads right to left on a left-to-right page, its
     // header and launcher included, where a locale alone turned only the messages and the input.
-    // Without either, it follows the page.
-    const direction = options.locale?.direction ?? (RIGHT_TO_LEFT.test(language) ? 'rtl' : undefined);
+    // Only when it speaks that language — the page's locale, or its words in `i18n`: a
+    // right-to-left tag with nothing written for it reads in English, and English mirrored
+    // would read backwards. Without either, it follows the page.
+    const speaksIt = options.locale !== undefined || ownStrings(language, options.i18n) !== undefined;
+    const direction = options.locale?.direction ?? (speaksIt && RIGHT_TO_LEFT.test(language) ? 'rtl' : undefined);
     if (direction) root.setAttribute('dir', direction);
     if (mode === 'window') {
         // On a phone the open chat covers the page: a modal dialog to assistive technology too,
@@ -636,6 +681,7 @@ export function createChat(options: ChatOptions): Chat {
         ...(options.metadata ? { metadata: options.metadata } : {}),
         ...(options.chatInputKey ? { chatInputKey: options.chatInputKey } : {}),
         ...(options.chatSessionKey ? { chatSessionKey: options.chatSessionKey } : {}),
+        ...(options.waitingPrefix !== undefined ? { waitingPrefix: options.waitingPrefix } : {}),
     });
     const streamRunner: AparteStreamRunner = async (opts) => {
         const message = lastSent;
@@ -654,8 +700,9 @@ export function createChat(options: ChatOptions): Chat {
                 opts.emitter(event);
             },
         }).catch((error: unknown) => {
-            // The workflow's own error, sent in its answer (no HTTP status): its words are kept
-            // for the visitor under core's sentence. Any other failure is core's to word.
+            // The workflow's own error, sent in its answer (no HTTP status): the visitor reads
+            // that the assistant could not answer, the runner has put its words on the
+            // console. Any other failure is core's to word.
             // Read by its fields, not `instanceof`: a bundle may hold a second copy of core.
             const failure = error as Partial<AparteError> | null;
             if (failure?.code === AparteErrorCode.PROVIDER_ERROR && failure.httpStatus === undefined) {
@@ -736,19 +783,20 @@ export function createChat(options: ChatOptions): Chat {
     chat.addEventListener('aparte-send', () => { recall = -1; draft = ''; });
 
     // A link in an answer opens in a new tab, as in n8n's widget: the visitor keeps the page
-    // the chat is on. A modified click (a new window, a download) is the browser's.
+    // the chat is on, and the site it leads to is not told which page that was. A modified
+    // click (a new window, a download) is the browser's.
     chat.addEventListener('click', (event) => {
         if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         const link = (event.target as Element | null)?.closest<HTMLAnchorElement>('.aparte-message-content a[href]');
         if (!link || link.getAttribute('href')?.startsWith('#')) return;
         event.preventDefault();
-        window.open(link.href, '_blank', 'noopener');
+        window.open(link.href, '_blank', 'noopener,noreferrer');
     });
 
     // A picture or a file opens in a new tab.
     chat.addEventListener('aparte-attachment-preview', (event) => {
         const { url } = (event as CustomEvent<{ url: string }>).detail;
-        if (url) window.open(url, '_blank', 'noopener');
+        if (url) window.open(url, '_blank', 'noopener,noreferrer');
     });
 
     // n8n's `disabled`, a Vue ref there: read once here, changed with `setDisabled()`.

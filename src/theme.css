@@ -211,6 +211,10 @@
 .aparte-n8n__chat {
   flex: 1 1 auto;
   min-block-size: 0;
+  /* The Powered by line sits right under the composer, so the chat's own gap below it
+     (aparté's 16px, for a chat that ends at the composer) shrinks to a breath: the
+     composer comes down to the line. */
+  --aparte-chat-bottom-gap: var(--aparte-space-3, 0.375rem);
 }
 
 .aparte-n8n__welcome {
@@ -395,14 +399,6 @@
   .aparte-n8n__subtitle {
     display: none;
   }
-}
-
-/* What the workflow itself said went wrong, under the sentence: smaller, and quieter. */
-.aparte-n8n .aparte-n8n__error-detail {
-  margin: var(--aparte-space-1) 0 0;
-  font-size: var(--aparte-font-size-sm);
-  color: var(--aparte-text-muted);
-  overflow-wrap: anywhere;
 }
 
 /* n8n's `transparent` history message: its words without the bubble around them. */
