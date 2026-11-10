@@ -19,7 +19,7 @@ weather — and offer **quick replies** the visitor clicks. [See it live](https:
 - Every option of `@n8n/chat` 1.43, the same defaults, the same session in the browser — and the
   Chat nodes' messages and buttons of a workflow that answers through response nodes.
 - Ten languages, keyboard and screen-reader access, readable contrast, a dark scheme.
-- About 151 KB compressed on the first load, against about 471 KB (measured 2026-11-07 on 1.0.0; `@n8n/chat` 1.44.7 on 2026-10-31).
+- About 155 KB compressed on the first load, against about 471 KB (measured 2026-11-10 on 1.0.1; `@n8n/chat` 1.44.7 on 2026-10-31).
 - A handle to drive it from your page: `open`, `close`, `toggle`, `send`, `reset`, `setDisabled`,
   `destroy`.
 - MIT. A small grey "Powered by aparté" line sits under the input, linking to [apartejs.dev](https://apartejs.dev).
@@ -29,9 +29,9 @@ weather — and offer **quick replies** the visitor clicks. [See it live](https:
 ### From a CDN — no build step
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.0/dist/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.1/dist/style.css">
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.0/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.1/dist/cdn/n8n-chat.js';
 
   createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
 </script>
@@ -61,10 +61,10 @@ Replace the stylesheet and the import; the call stays as it is:
 
 ```diff
 - <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
-+ <link href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.0/dist/style.css" rel="stylesheet" />
++ <link href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.1/dist/style.css" rel="stylesheet" />
   <script type="module">
 -   import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
-+   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.0/dist/cdn/n8n-chat.js';
++   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.1/dist/cdn/n8n-chat.js';
     createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
   </script>
 ```
@@ -267,7 +267,7 @@ createChat({
 ```
 
 Take `defineCard` from the widget's own module, as above, and from the same URL when you load
-it from a CDN (`…/@aparte/n8n-chat@1.0.0/dist/cdn/n8n-chat.js`): the card and the chat then share
+it from a CDN (`…/@aparte/n8n-chat@1.0.1/dist/cdn/n8n-chat.js`): the card and the chat then share
 one copy of aparté. A kit loaded from another URL keeps its cards where the chat never looks.
 
 ````md
@@ -383,11 +383,11 @@ so the page puts a fresh token in `metadata` before every message.
 2. In the page:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.0/dist/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.1/dist/style.css">
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
 <div id="turnstile"></div>
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.0/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.1/dist/cdn/n8n-chat.js';
 
   // A Turnstile token is single-use and lasts five minutes: ask for a new one before each message.
   let widgetId;
@@ -573,7 +573,7 @@ or Angular components, inside an `.aparte-n8n` element.
 | Dark scheme | — | ✓ |
 | Rich cards | the JSON as text | drawn: order, booking, product, weather… |
 | Quick replies offered by an answer | the block as code | buttons above the input |
-| Weight, first load (compressed) | ~471 KB | ~151 KB |
+| Weight, first load (compressed) | ~471 KB | ~155 KB |
 | License | Sustainable Use License | MIT |
 
 ## Versions
