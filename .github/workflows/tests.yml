@@ -1,0 +1,25 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+      - run: npm install -g pnpm@10.32.1
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:run
+      - run: pnpm build
+      # latest.js names the version being built: a page that loads it through `@1` gets this one, whole.
+      - name: latest.js names this version
+        run: grep -q "@aparte/n8n-chat@$(node -p "require('./package.json').version")/dist/cdn/n8n-chat.js" dist/cdn/latest.js
