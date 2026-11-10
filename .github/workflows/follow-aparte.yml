@@ -1,0 +1,127 @@
+name: follow aparté
+
+# The widget depends on exact versions of aparté. Once a day, or by hand, this job looks for a newer aparté 1.x on
+# npm. When there is one, it moves the widget onto it, runs the tests, builds, and commits a patch version to main.
+# Then, whenever package.json names a version npm does not have yet (this run's, or one a person merged), it
+# publishes it, tags it, writes its GitHub release and refreshes jsDelivr, so that pages loading
+# `@aparte/n8n-chat@1/dist/cdn/latest.js` get it. A new major of aparté only warns: a person moves the widget.
+# A push that finds main moved fails, and the next run starts again from the new main.
+on:
+  schedule:
+    - cron: '41 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: follow-aparte
+  cancel-in-progress: false
+
+jobs:
+  follow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g pnpm@10.32.1
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - id: versions
+        name: Compare the widget's aparté with npm's latest
+        run: |
+          current=$(node -p "require('./package.json').dependencies['@aparte/core']")
+          latest=$(npm view @aparte/core version)
+          echo "on $current, latest is $latest"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          node -e '
+            const [current, latest] = process.argv.slice(1).map((v) => v.split(".").map(Number));
+            const newer = latest[0] !== current[0] ? latest[0] > current[0]
+              : latest[1] !== current[1] ? latest[1] > current[1] : latest[2] > current[2];
+            if (!newer) { console.log("up to date"); process.exit(0); }
+            if (latest[0] !== current[0]) { console.log(`::warning::aparté ${process.argv[2]} is a new major: a person moves the widget.`); process.exit(0); }
+            require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "follow=true\n");
+          ' "$current" "$latest"
+
+      - if: steps.versions.outputs.follow == 'true'
+        name: Move the widget onto the new aparté, as a patch version
+        env:
+          APARTE: ${{ steps.versions.outputs.latest }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const aparte = process.argv[1];
+            let pkg = fs.readFileSync("package.json", "utf8");
+            pkg = pkg.replace(/("@aparte\/[a-z0-9-]+": )"\d+\.\d+\.\d+"/g, `$1"${aparte}"`);
+            const [a, b, c] = JSON.parse(pkg).version.split(".").map(Number);
+            const next = `${a}.${b}.${c + 1}`;
+            pkg = pkg.replace(/("version": )"\d+\.\d+\.\d+"/, `$1"${next}"`);
+            fs.writeFileSync("package.json", pkg);
+            // The README pins exact versions where it shows a frozen install: they follow the release.
+            const readme = fs.readFileSync("README.md", "utf8").replace(/@aparte\/n8n-chat@\d+\.\d+\.\d+\//g, `@aparte/n8n-chat@${next}/`);
+            fs.writeFileSync("README.md", readme);
+          ' "$APARTE"
+          pnpm install --no-frozen-lockfile
+          pnpm test:run
+          pnpm build
+          version=$(node -p "require('./package.json').version")
+          git add package.json pnpm-lock.yaml README.md
+          git commit -m "chore: $version, on aparté $APARTE"
+          git push origin HEAD:main
+
+      - id: unpublished
+        name: Is package.json's version on npm?
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "aparte=$(node -p "require('./package.json').dependencies['@aparte/core']")" >> "$GITHUB_OUTPUT"
+          if npm view "@aparte/n8n-chat@$version" version > /dev/null 2>&1; then echo "$version is on npm"; else echo "publish=true" >> "$GITHUB_OUTPUT"; fi
+
+      - if: steps.unpublished.outputs.publish == 'true'
+        name: Publish, tag and release it
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.unpublished.outputs.version }}
+          APARTE: ${{ steps.unpublished.outputs.aparte }}
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm test:run
+          pnpm build
+          grep -q "@aparte/n8n-chat@$VERSION/dist/cdn/n8n-chat.js" dist/cdn/latest.js
+          npm publish --provenance --access public
+          if ! git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
+            git tag "v$VERSION"
+            git push origin "v$VERSION"
+          fi
+          if ! gh release view "v$VERSION" > /dev/null 2>&1; then
+            gh release create "v$VERSION" --verify-tag --title "v$VERSION" \
+              --notes "The widget, on aparté $APARTE ([aparté's notes](https://github.com/apartejs/aparte/releases/tag/v$APARTE)). Pages that load \`@aparte/n8n-chat@1/dist/cdn/latest.js\` get it on their own; a pinned URL moves to \`@$VERSION\`."
+          fi
+
+      - if: steps.unpublished.outputs.publish == 'true'
+        name: Refresh jsDelivr
+        env:
+          VERSION: ${{ steps.unpublished.outputs.version }}
+        run: |
+          # jsDelivr may have cached a 404 for the new version before npm served it: purge until it answers.
+          for attempt in $(seq 1 40); do
+            for file in cdn/latest.js cdn/n8n-chat.js style.css; do
+              curl -s "https://purge.jsdelivr.net/npm/@aparte/n8n-chat@$VERSION/dist/$file" > /dev/null
+            done
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' "https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@$VERSION/dist/cdn/latest.js")" = 200 ]; then
+              break
+            fi
+            sleep 15
+          done
+          # Then the range: `@1/` answers with this version from now on, not in 12 hours.
+          curl -s "https://purge.jsdelivr.net/npm/@aparte/n8n-chat@1/dist/cdn/latest.js"
+          curl -s "https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1/dist/cdn/latest.js" | head -1

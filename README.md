@@ -29,17 +29,33 @@ weather — and offer **quick replies** the visitor clicks. [See it live](https:
 ### From a CDN — no build step
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.1/dist/style.css">
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.1/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1/dist/cdn/latest.js';
 
   createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
 </script>
 ```
 
-`dist/cdn/n8n-chat.js` is one module with aparté inside it. What only some pages need is fetched
-when used, from beside it: a language other than English, and the code highlighter with the first
-code block. Keep the version in the URL: the widget you tested is the widget your visitors get.
+`latest.js` loads the latest 1.x and its stylesheet, both from one exact version, so a fix reaches
+your visitors on its own: within 12 hours on jsDelivr, and within a week for a browser that kept the
+previous one. A 2.0 never arrives on its own. The module has aparté inside it; what only some pages
+need is fetched when used, from beside it: a language other than English, and the code highlighter
+with the first code block.
+
+To keep one version until you change it, load the module and its stylesheet by their exact version
+instead:
+
+```html
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.2/dist/style.css">
+<script type="module">
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.2/dist/cdn/n8n-chat.js';
+
+  createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
+</script>
+```
+
+Load `n8n-chat.js` by an exact version only: through a range like `@1`, a browser could keep last
+week's module and fetch its chunks from this week's version, where they no longer exist.
 
 ### From npm
 
@@ -57,14 +73,13 @@ chat.open();
 
 ## Coming from `@n8n/chat`
 
-Replace the stylesheet and the import; the call stays as it is:
+Replace the import and drop the stylesheet, which `latest.js` loads itself; the call stays as it is:
 
 ```diff
 - <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
-+ <link href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.1/dist/style.css" rel="stylesheet" />
   <script type="module">
 -   import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
-+   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.1/dist/cdn/n8n-chat.js';
++   import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1/dist/cdn/latest.js';
     createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
   </script>
 ```
@@ -267,7 +282,7 @@ createChat({
 ```
 
 Take `defineCard` from the widget's own module, as above, and from the same URL when you load
-it from a CDN (`…/@aparte/n8n-chat@1.0.1/dist/cdn/n8n-chat.js`): the card and the chat then share
+it from a CDN (`…/@aparte/n8n-chat@1/dist/cdn/latest.js`): the card and the chat then share
 one copy of aparté. A kit loaded from another URL keeps its cards where the chat never looks.
 
 ````md
@@ -383,11 +398,10 @@ so the page puts a fresh token in `metadata` before every message.
 2. In the page:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.1/dist/style.css">
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
 <div id="turnstile"></div>
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.1/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1/dist/cdn/latest.js';
 
   // A Turnstile token is single-use and lasts five minutes: ask for a new one before each message.
   let widgetId;
@@ -581,12 +595,14 @@ or Angular components, inside an `.aparte-n8n` element.
 From 1.0.0 the widget follows semantic versioning: the options of `createChat`, the handle it
 returns, what the module exports (the card kit included), the `i18n` keys, the `--chat--*`
 variables, the `.aparte-n8n` root with its `data-aparte-theme`, and the files a page loads
-(`dist/cdn/n8n-chat.js`, `dist/style.css`, `./theme.css`) keep their names, and what they do, until
-2.0. A security fix may refuse what was accepted in any release, and says so first in its notes.
+(`dist/cdn/latest.js`, `dist/cdn/n8n-chat.js`, `dist/style.css`, `./theme.css`) keep their names, and
+what they do, until 2.0. A security fix may refuse what was accepted in any release, and says so first
+in its notes.
 
-The widget depends on **exact** versions of aparté's packages, and moves to a newer aparté only in
-a release of its own. Pin the widget's version in a CDN URL and in your `package.json`, and what you
-tested is what your visitors run.
+The widget depends on **exact** versions of aparté's packages, and moves to a newer aparté only in a
+release of its own: within a day of a new aparté 1.x, a patch release of the widget carries it, once
+its tests pass. `@1/dist/cdn/latest.js` brings it to your page on its own. To decide when, pin the
+exact version in the CDN URLs and in your `package.json`: what you tested is what your visitors run.
 
 ## Links
 
