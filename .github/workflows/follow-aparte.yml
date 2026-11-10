@@ -30,7 +30,9 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      - run: npm install -g pnpm@10.32.1
+      # npm 11.5.1+ publishes through npm's trusted publishing (OIDC, no token) when the package names this workflow
+      # as its trusted publisher on npmjs.com; otherwise the NPM_TOKEN secret is used.
+      - run: npm install -g npm@11 pnpm@10.32.1
       - run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
