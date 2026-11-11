@@ -23,7 +23,7 @@ export interface ChatStrings {
     getStarted: string;
     /** The input's placeholder. */
     inputPlaceholder: string;
-    /** The name of the header's close button. */
+    /** The name of the close button: the header's ✕, and the button in the corner while the chat is open. */
     closeButtonTooltip: string;
     /** With `enableMessageActions`: the action on a sent message that sends it again. */
     repostButton: string;
@@ -200,6 +200,12 @@ export function shippedLanguage(tag: string): string {
     if (LANGUAGES[tag]) return tag;
     const primary = tag.split('-')[0]?.toLowerCase() ?? '';
     return Object.keys(LANGUAGES).find((key) => key.split('-')[0]?.toLowerCase() === primary) ?? 'en';
+}
+
+/** The built-in words of a language the widget ships, by its tag or its primary subtag; none for another. */
+export function shippedStrings(tag: string): ChatStrings | undefined {
+    const key = shippedLanguage(tag);
+    return key !== 'en' || tag.split('-')[0]?.toLowerCase() === 'en' ? LANGUAGES[key]!.strings : undefined;
 }
 
 /**

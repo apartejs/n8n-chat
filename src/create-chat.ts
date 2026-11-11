@@ -9,12 +9,12 @@
  * that say what to change in n8n; and no style leaking into the page.
  */
 import { AparteClient, AparteConfig, AparteError, AparteErrorCode, attachConfig, registerSegmentRenderer, setupSuggestionBlocks, uuid } from '@aparte/core';
-import type { AparteImagePolicy, AparteLauncher, AparteLocale, AparteMessage, AparteSegment, AparteStreamRunner } from '@aparte/core';
+import type { AparteImagePolicy, AparteLauncher, AparteLauncherToggleDetail, AparteLocale, AparteMessage, AparteSegment, AparteStreamRunner } from '@aparte/core';
 import { setupMarkedStreamingProvider } from '@aparte/plugin-marked/streaming';
 import { createN8nRunner, loadN8nHistory, setupN8nButtons } from '@aparte/runner-n8n';
 import { setupCards, type CardOptions } from './cards.js';
 import { N8N_ICONS } from './icons.js';
-import { initialMessagesFor, loadLocale, ownStrings, stringsFor } from './strings.js';
+import { initialMessagesFor, loadLocale, ownStrings, shippedStrings, stringsFor } from './strings.js';
 import type { ChatStrings } from './strings.js';
 
 /**
@@ -62,10 +62,18 @@ export interface ChatOptions {
     mode?: 'window' | 'embedded' | 'fullscreen';
     /**
      * A ✕ in the header, in window mode. Without it the button in the corner closes the
-     * chat, and on a phone, where the open chat covers the page, it moves to the top corner.
+     * chat; while the chat fills a phone's screen or is maximized, that button is gone and
+     * the ✕ is there anyway.
      * @default false, as n8n's widget
      */
     showWindowCloseButton?: boolean;
+    /**
+     * A button in the header that maximizes the chat, in window mode: `true` to the whole
+     * window, `'panel'` to a full-height panel along the edge that keeps the page in view.
+     * The same button, or Escape, brings it back. Not n8n's: aparté's launcher has it.
+     * @default false
+     */
+    maximizable?: boolean | 'panel';
     /** Show a screen with a "New Conversation" button before the chat. @default false */
     showWelcomeScreen?: boolean;
     /**
@@ -241,6 +249,15 @@ export interface Chat {
     /** Open it when closed, close it when open (window mode). */
     toggle(): void;
     /**
+     * Maximize the chat (window mode): the whole window, or the panel with
+     * `maximizable: 'panel'`. Kept while the chat is closed, so it opens maximized. Give
+     * `maximizable` too: without it the header has no button to bring it back, only Escape
+     * and `restore()` do.
+     */
+    maximize(): void;
+    /** Bring a maximized chat back to its window (window mode). */
+    restore(): void;
+    /**
      * Send a message as the person. While an answer is on its way, it waits for it; what
      * the person is typing is left as it is.
      */
@@ -381,13 +398,20 @@ export function createChat(options: ChatOptions): Chat {
     // The chat's own words: the page's locale, else the language's, loaded now — a page that
     // speaks German downloads German alone. Until it lands, core's English; then the chat
     // switches, as it does on any locale change.
-    if (options.locale) config.setLocale(options.locale);
+    // The header's ✕ is the launcher's, named by the locale's `launcherClose` (the button in the
+    // corner too, while open). `closeButtonTooltip` names it instead, as it named n8n's: the
+    // page's own, else — unless the page gave its own locale — the widget's for a language it
+    // ships. For another language, the widget's English would replace the locale's words.
+    const closeWord = ownStrings(language, options.i18n)?.closeButtonTooltip
+        ?? (options.locale ? undefined : shippedStrings(language)?.closeButtonTooltip);
+    const withOwnWords = (locale: AparteLocale): AparteLocale => (closeWord ? { ...locale, launcherClose: closeWord } : locale);
+    if (options.locale || closeWord) config.setLocale(withOwnWords(options.locale ?? config.getLocale()));
     let destroyed = false;
     // The locale as it stands before the page's `setup`: if `setup` sets its own, the language
     // loaded afterwards must not replace it.
     let beforeSetup = config.getLocale();
     void loadLocale(language)?.then((locale) => {
-        if (!destroyed && !options.locale && config.getLocale() === beforeSetup) config.setLocale(locale);
+        if (!destroyed && !options.locale && config.getLocale() === beforeSetup) config.setLocale(withOwnWords(locale));
     }, (error: unknown) => console.warn("[aparte] n8n: the chat's language could not be loaded; it stays in English.", error));
     // n8n's look in the icons too: a filled bubble on the button, a chevron once open.
     config.registerIcons(N8N_ICONS);
@@ -440,24 +464,20 @@ export function createChat(options: ChatOptions): Chat {
 
     // ── The markup ─────────────────────────────────────────────────────────────────────
     const card = el('section', 'aparte-n8n__window');
-    card.setAttribute('aria-labelledby', titleId);
-
-    const header = el('header', 'aparte-n8n__header');
-    const heading = el('div', 'aparte-n8n__heading');
-    const title = el('p', 'aparte-n8n__title', strings.title);
-    title.id = titleId;
-    heading.append(title);
-    if (strings.subtitle) heading.append(el('p', 'aparte-n8n__subtitle', strings.subtitle));
-    header.append(heading);
-    if (mode === 'window' && options.showWindowCloseButton) {
-        const close = el('button', 'aparte-btn aparte-btn--icon aparte-btn--ghost aparte-n8n__close');
-        close.type = 'button';
-        close.setAttribute('aria-label', strings.closeButtonTooltip);
-        close.setAttribute('data-aparte-launcher-close', '');
-        const icon = el('aparte-icon');
-        icon.setAttribute('name', 'close');
-        close.append(icon);
-        header.append(close);
+    // In window mode the launcher draws the header over the card — the title, the line under
+    // it, the maximize button and the ✕ — so the card carries none, and no name either: a region
+    // named by the title would repeat it, and leave the header's buttons out of it. In the
+    // page, the card brings its own header, and is named by it.
+    let header: HTMLElement | undefined;
+    if (mode !== 'window') {
+        card.setAttribute('aria-labelledby', titleId);
+        header = el('header', 'aparte-n8n__header');
+        const heading = el('div', 'aparte-n8n__heading');
+        const title = el('p', 'aparte-n8n__title', strings.title);
+        title.id = titleId;
+        heading.append(title);
+        if (strings.subtitle) heading.append(el('p', 'aparte-n8n__subtitle', strings.subtitle));
+        header.append(heading);
     }
 
     const chat = el('aparte-chat', 'aparte-n8n__chat') as ChatElement;
@@ -501,7 +521,8 @@ export function createChat(options: ChatOptions): Chat {
     // composes its own: without it, a Chat node's buttons had nobody to ask them.
     chat.append(el('aparte-chat-viewport'), el('aparte-elicitation'), composer);
 
-    card.append(header, chat);
+    if (header) card.append(header);
+    card.append(chat);
     // "Powered by aparté", a small grey line under the input, always: the words follow `i18n`,
     // the line and its link stay.
     {
@@ -535,6 +556,11 @@ export function createChat(options: ChatOptions): Chat {
     let root: HTMLElement;
     if (mode === 'window') {
         root = el('aparte-launcher', 'aparte-n8n aparte-n8n--window');
+        root.setAttribute('heading', strings.title);
+        if (strings.subtitle) root.setAttribute('subheading', strings.subtitle);
+        if (options.maximizable) root.setAttribute('maximizable', options.maximizable === 'panel' ? 'panel' : '');
+        // Read by the theme, which leaves the ✕ out of a window that did not ask for it.
+        root.toggleAttribute('data-n8n-close-button', Boolean(options.showWindowCloseButton));
         root.append(card);
     } else {
         root = el('div', 'aparte-n8n aparte-n8n--fullscreen');
@@ -553,16 +579,29 @@ export function createChat(options: ChatOptions): Chat {
     const direction = options.locale?.direction ?? (speaksIt && RIGHT_TO_LEFT.test(language) ? 'rtl' : undefined);
     if (direction) root.setAttribute('dir', direction);
     if (mode === 'window') {
-        // On a phone the open chat covers the page: a modal dialog to assistive technology too,
-        // not only to Tab.
+        // While the open chat covers the window — a phone, or maximized to it — it is a modal
+        // dialog to assistive technology too, not only to Tab. The launcher is the dialog, so
+        // the header and its ✕ are inside it.
         root.addEventListener('aparte-launcher-toggle', (event) => {
-            const { open, sheet } = (event as CustomEvent<{ open: boolean; sheet: boolean }>).detail;
-            if (open && sheet) {
-                card.setAttribute('role', 'dialog');
-                card.setAttribute('aria-modal', 'true');
+            const { open, covers } = (event as CustomEvent<AparteLauncherToggleDetail>).detail;
+            if (open && covers) {
+                root.setAttribute('role', 'dialog');
+                root.setAttribute('aria-modal', 'true');
+                if (strings.title) root.setAttribute('aria-label', strings.title);
             } else {
-                card.removeAttribute('role');
-                card.removeAttribute('aria-modal');
+                root.removeAttribute('role');
+                root.removeAttribute('aria-modal');
+                root.removeAttribute('aria-label');
+            }
+            // Back to a window that hides its ✕ (no `showWindowCloseButton`): a ✕ that held the
+            // focus is about to go, and would drop it on the page. The maximize button takes it,
+            // else the input.
+            const active = document.activeElement;
+            if (open && !covers && !options.showWindowCloseButton && active instanceof HTMLElement
+                && root.contains(active) && active.matches('[data-aparte-launcher-close]')) {
+                const maximize = root.querySelector<HTMLElement>('.aparte-launcher__maximize:not([hidden])');
+                if (maximize) maximize.focus();
+                else chat.querySelector<HTMLElement & { focusEnd?: () => void }>('aparte-composer-input')?.focusEnd?.();
             }
         });
     }
@@ -824,6 +863,8 @@ export function createChat(options: ChatOptions): Chat {
         open: () => launcher()?.show(),
         close: () => launcher()?.close(),
         toggle: () => launcher()?.toggle(),
+        maximize: () => launcher()?.maximize(),
+        restore: () => launcher()?.restore(),
         send: (text: string) => {
             if (busy) queued.push(text);
             else dispatchSend(text);

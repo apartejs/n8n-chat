@@ -26,6 +26,25 @@ describe('one color is enough', () => {
     });
 });
 
+describe("the launcher's header, in n8n's look", () => {
+    it("leaves the ✕ out of a window that did not ask for it, and keeps it while the chat covers the window", () => {
+        const rule = css.match(/([^{}]+)\{\s*display: none;\s*\}/g)?.find((r) => r.includes('.aparte-launcher__close')) ?? '';
+        expect(rule).toContain('.aparte-n8n:not([data-n8n-close-button], [data-sheet], [maximized]) > .aparte-launcher__header .aparte-launcher__close');
+    });
+
+    it("keeps n8n's padding over the title while the chat covers the window, and the page's header borders", () => {
+        expect(css).toMatch(/\.aparte-n8n\[open\]:is\(\[data-sheet\], \[maximized\]\) > \.aparte-launcher__header \{\s*padding-block-start: calc\(var\(--chat--spacing, 1rem\) \+ env\(safe-area-inset-top, 0px\)\);\s*border-block-end: var\(--chat--header--border-bottom, none\);/);
+        expect(css).toContain('border-block-start: var(--chat--header--border-top, var(--chat--window--border, 1px solid var(--aparte-border)));');
+    });
+
+    it("takes n8n's header colors, title and subtitle, as the card's own header does", () => {
+        for (const own of ['.aparte-n8n__header', '.aparte-n8n__title', '.aparte-n8n__subtitle']) {
+            const launcher = { '.aparte-n8n__header': '.aparte-n8n > .aparte-launcher__header', '.aparte-n8n__title': '.aparte-n8n .aparte-launcher__title', '.aparte-n8n__subtitle': '.aparte-n8n .aparte-launcher__subheading' }[own];
+            expect(css).toContain(`${own},\n${launcher} {`);
+        }
+    });
+});
+
 describe('dark follows the page', () => {
     it('the chosen dark and the system\'s dark are the same declarations', () => {
         const { chosen, system } = darkBlocks();

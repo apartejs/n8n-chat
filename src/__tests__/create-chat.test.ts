@@ -43,6 +43,12 @@ const messagesOf = (chat: Chat): AparteMessage[] =>
 /** A message's text: its content, or — for a streamed answer — its text segments. */
 const textOf = (m: AparteMessage) => m.content || (m.segments ?? []).map((s) => (s.type === 'text' ? s.content : '')).join('');
 const contents = (chat: Chat) => messagesOf(chat).map((m) => [m.role, textOf(m)]);
+/** The header's title and the line under it: the launcher's in a window, the card's own in the page. */
+const titleOf = (chat: Chat) => chat.element.querySelector('.aparte-launcher__title, .aparte-n8n__title')?.textContent;
+const subtitleOf = (chat: Chat) => {
+    const line = chat.element.querySelector<HTMLElement>('.aparte-launcher__subheading, .aparte-n8n__subtitle');
+    return line && !line.hidden ? line.textContent : null;
+};
 
 const chats: Chat[] = [];
 function mount(options: Partial<ChatOptions> = {}): Chat {
@@ -70,15 +76,96 @@ describe('createChat: the widget, as n8n draws it', () => {
         expect(chat.element.tagName).toBe('APARTE-LAUNCHER');
         expect(chat.element.classList.contains('aparte-n8n')).toBe(true);
         expect(target.contains(chat.element)).toBe(true);
-        expect(chat.element.querySelector('.aparte-n8n__title')?.textContent).toBe('Hi there! 👋');
-        expect(chat.element.querySelector('.aparte-n8n__subtitle')?.textContent).toBe("Start a chat. We're here to help you 24/7.");
+        // The launcher's header, over the window: n8n's title and the line under it.
+        expect(titleOf(chat)).toBe('Hi there! 👋');
+        expect(subtitleOf(chat)).toBe("Start a chat. We're here to help you 24/7.");
+        expect(chat.element.firstElementChild?.classList.contains('aparte-launcher__header')).toBe(true);
+        expect(chat.element.querySelector('.aparte-n8n__window > header, .aparte-n8n__header')).toBeNull();
         expect(chat.element.querySelector('aparte-composer')?.getAttribute('placeholder')).toBe('Type your question..');
-        // n8n's widget draws no close button unless asked: the button in the corner closes it.
-        expect(chat.element.querySelector('.aparte-n8n__close')).toBeNull();
-        expect(chat.element.querySelector('.aparte-n8n__window')?.getAttribute('aria-labelledby')).toBe(chat.element.querySelector('.aparte-n8n__title')?.id);
+        // n8n's widget draws no close button unless asked, and no maximize button.
+        expect(chat.element.hasAttribute('data-n8n-close-button')).toBe(false);
+        expect(chat.element.hasAttribute('maximizable')).toBe(false);
+        expect(chat.element.querySelector<HTMLElement>('.aparte-launcher__maximize')?.hidden).toBe(true);
+        // The card under the header is no region of its own: the title names the chat once.
+        const card = chat.element.querySelector('.aparte-n8n__window')!;
+        expect(card.hasAttribute('aria-label') || card.hasAttribute('aria-labelledby')).toBe(false);
         expect(contents(chat)).toEqual([['assistant', 'Hi there! 👋'], ['assistant', 'My name is Nathan. How can I assist you today?']]);
-        // n8n's widget writes an h1 into the page; this one writes no heading at all.
+        // n8n's widget writes an h1 into the page; this one's title is the launcher's level-2
+        // heading, and no heading element of the page's outline.
         expect(chat.element.querySelector('h1, h2, h3')).toBeNull();
+        expect(chat.element.querySelector('[role="heading"]')?.getAttribute('aria-level')).toBe('2');
+    });
+
+    it('maximizes on request — the button in the header, the whole window or a panel — and from the handle', () => {
+        n8n();
+        const whole = mount({ loadPreviousSession: false, maximizable: true });
+        expect(whole.element.getAttribute('maximizable')).toBe('');
+        expect(whole.element.querySelector<HTMLElement>('.aparte-launcher__maximize')?.hidden).toBe(false);
+        whole.open();
+        whole.element.querySelector<HTMLElement>('.aparte-launcher__maximize')!.click();
+        expect(whole.element.hasAttribute('maximized')).toBe(true);
+        whole.restore();
+        expect(whole.element.hasAttribute('maximized')).toBe(false);
+        whole.maximize();
+        expect(whole.element.hasAttribute('maximized')).toBe(true);
+        whole.destroy();
+
+        const panel = mount({ loadPreviousSession: false, maximizable: 'panel' });
+        expect(panel.element.getAttribute('maximizable')).toBe('panel');
+        panel.destroy();
+
+        // In the page there is no window to maximize: neither the button nor the handle does anything.
+        const host = document.createElement('main');
+        document.body.append(host);
+        const block = mount({ target: host, mode: 'embedded', loadPreviousSession: false, maximizable: true });
+        expect(block.element.querySelector('[data-aparte-launcher-maximize]')).toBeNull();
+        block.maximize();
+        block.restore();
+        expect(block.element.hasAttribute('maximized')).toBe(false);
+    });
+
+    it("names the ✕ with closeButtonTooltip — the page's, else the widget's for its language — and the page's locale for another", async () => {
+        n8n();
+        const closeOf = (chat: Chat) => chat.element.querySelector('.aparte-launcher__close')?.getAttribute('aria-label');
+        const own = mount({ loadPreviousSession: false, showWindowCloseButton: true, i18n: { en: { closeButtonTooltip: 'Hide the help' } } });
+        expect(own.element.hasAttribute('data-n8n-close-button')).toBe(true);
+        expect(closeOf(own)).toBe('Hide the help');
+        own.destroy();
+        // A language the widget ships: its own word, kept once aparté's German has loaded —
+        // and the page's word over it.
+        const german = mount({ loadPreviousSession: false, defaultLanguage: 'de' });
+        const germanOwn = mount({ loadPreviousSession: false, defaultLanguage: 'de', target: '#b', i18n: { de: { closeButtonTooltip: 'Zumachen' } } });
+        await vi.waitFor(() => expect(german.element.querySelector('.aparte-launcher__button')?.getAttribute('aria-label')).toBe('Chat öffnen'));
+        await vi.waitFor(() => expect(germanOwn.element.querySelector('.aparte-launcher__button')?.getAttribute('aria-label')).toBe('Chat öffnen'));
+        expect(closeOf(german)).toBe('Chat schließen');
+        expect(closeOf(germanOwn)).toBe('Zumachen');
+        german.destroy();
+        germanOwn.destroy();
+        // A language it does not ship, with the page's locale and no word of its own for the
+        // ✕: the locale's, not the widget's English.
+        const dutch = mount({ loadPreviousSession: false, defaultLanguage: 'nl', locale: { ...APARTE_DEFAULT_LOCALE, tag: 'nl', launcherClose: 'Chat sluiten' }, i18n: { nl: { title: 'Hallo!' } } });
+        expect(closeOf(dutch)).toBe('Chat sluiten');
+    });
+
+    it('hands the focus on when the ✕ that held it goes, as the chat comes back to its window', () => {
+        n8n();
+        const chat = mount({ loadPreviousSession: false, maximizable: true });
+        chat.open();
+        chat.maximize();
+        const close = chat.element.querySelector<HTMLElement>('.aparte-launcher__close')!;
+        close.focus();
+        expect(document.activeElement).toBe(close);
+        chat.restore();
+        expect(document.activeElement).toBe(chat.element.querySelector('.aparte-launcher__maximize'));
+        chat.destroy();
+        // Asked for, the ✕ stays, and so does the focus.
+        const kept = mount({ loadPreviousSession: false, maximizable: true, showWindowCloseButton: true });
+        kept.open();
+        kept.maximize();
+        const keptClose = kept.element.querySelector<HTMLElement>('.aparte-launcher__close')!;
+        keptClose.focus();
+        kept.restore();
+        expect(document.activeElement).toBe(keptClose);
     });
 
     it('says it is powered by aparté under the input, in the chat\'s language, always', () => {
@@ -107,14 +194,18 @@ describe('createChat: the widget, as n8n draws it', () => {
         document.body.append(host);
         const block = mount({ target: host, mode: 'embedded', loadPreviousSession: false });
         expect(block.element.tagName).toBe('DIV');
-        expect(block.element.querySelector('.aparte-n8n__close')).toBeNull();
+        // Its own header, in the card, named by its title; no ✕, since nothing is there to close.
+        const header = block.element.querySelector('.aparte-n8n__window > .aparte-n8n__header')!;
+        expect(titleOf(block)).toBe('Hi there! 👋');
+        expect(block.element.querySelector('.aparte-n8n__window')?.getAttribute('aria-labelledby')).toBe(header.querySelector('.aparte-n8n__title')?.id);
+        expect(block.element.querySelector('[data-aparte-launcher-close], .aparte-launcher__header')).toBeNull();
         block.destroy();
         // `@n8n/chat`'s name for the same thing.
         const full = mount({ target: host, mode: 'fullscreen', loadPreviousSession: false });
         expect(full.element.parentElement).toBe(host);
         expect(full.element.tagName).toBe('DIV');
         expect(full.element.classList.contains('aparte-n8n--fullscreen')).toBe(true);
-        expect(full.element.querySelector('.aparte-n8n__close')).toBeNull();
+        expect(full.element.querySelector('[data-aparte-launcher-close]')).toBeNull();
         full.open();
         full.close();
         full.toggle();
@@ -138,8 +229,8 @@ describe('createChat: the widget, as n8n draws it', () => {
     it('speaks French with defaultLanguage, under the words the page gives', () => {
         n8n();
         const chat = mount({ loadPreviousSession: false, defaultLanguage: 'fr', i18n: { fr: { title: 'Bienvenue chez Paul' } } });
-        expect(chat.element.querySelector('.aparte-n8n__title')?.textContent).toBe('Bienvenue chez Paul');
-        expect(chat.element.querySelector('.aparte-n8n__subtitle')?.textContent).toMatch(/^Démarrez une conversation/);
+        expect(titleOf(chat)).toBe('Bienvenue chez Paul');
+        expect(subtitleOf(chat)).toMatch(/^Démarrez une conversation/);
         expect(chat.element.querySelector('aparte-composer')?.getAttribute('placeholder')).toBe('Posez votre question…');
         expect(contents(chat)[1]).toEqual(['assistant', 'Je m’appelle Nathan. Comment puis-je vous aider ?']);
     });
@@ -151,29 +242,53 @@ describe('createChat: the widget, as n8n draws it', () => {
         expect(button().querySelector('svg path')?.getAttribute('d')).toMatch(/^M5\.5 3\.5h13/);
         chat.open();
         expect(button().querySelector('svg path')?.getAttribute('d')).toBe('m6 9.5 6 6 6-6');
-        // The header's close button keeps the chat's own close icon.
+        // The header's close button keeps the chat's own close icon, not the chevron.
         const withClose = mount({ loadPreviousSession: false, showWindowCloseButton: true, target: '#b' });
-        expect(withClose.element.querySelector('.aparte-n8n__close')?.getAttribute('aria-label')).toBe('Close chat');
-        expect(withClose.element.querySelector('.aparte-n8n__close aparte-icon')?.getAttribute('name')).toBe('close');
+        const close = withClose.element.querySelector('.aparte-launcher__close')!;
+        expect(close.getAttribute('aria-label')).toBe('Close chat');
+        expect(close.querySelector('svg')).not.toBeNull();
+        expect(close.querySelector('svg path')?.getAttribute('d')).not.toBe('m6 9.5 6 6 6-6');
     });
 
-    it('carries its language, and is a modal dialog while it covers a phone', () => {
+    it('carries its language, and is a modal dialog — its header inside — while it covers a phone', () => {
         n8n();
         const matchMedia = window.matchMedia;
         window.matchMedia = ((query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia;
         try {
             const chat = mount({ loadPreviousSession: false, defaultLanguage: 'fr' });
             expect(chat.element.getAttribute('lang')).toBe('fr');
-            const card = chat.element.querySelector('.aparte-n8n__window')!;
-            expect(card.getAttribute('role')).toBeNull();
+            expect(chat.element.getAttribute('role')).toBeNull();
             chat.open();
-            expect(card.getAttribute('role')).toBe('dialog');
-            expect(card.getAttribute('aria-modal')).toBe('true');
+            expect(chat.element.getAttribute('role')).toBe('dialog');
+            expect(chat.element.getAttribute('aria-modal')).toBe('true');
+            expect(chat.element.getAttribute('aria-label')).toBe(titleOf(chat));
+            expect(titleOf(chat)).toMatch(/^Bonjour/);
+            // The launcher is the dialog, not the card: the header and its ✕ are in it.
+            expect(chat.element.querySelector(':scope > .aparte-launcher__header [data-aparte-launcher-close]')).not.toBeNull();
+            expect(chat.element.querySelector('.aparte-n8n__window')?.hasAttribute('role')).toBe(false);
             chat.close();
-            expect(card.getAttribute('role')).toBeNull();
+            expect(chat.element.getAttribute('role')).toBeNull();
+            expect(chat.element.hasAttribute('aria-modal')).toBe(false);
         } finally {
             window.matchMedia = matchMedia;
         }
+    });
+
+    it('is a modal dialog while maximized to the window, and not as a panel beside the page', () => {
+        n8n();
+        const whole = mount({ loadPreviousSession: false, maximizable: true });
+        whole.open();
+        expect(whole.element.getAttribute('role')).toBeNull();
+        whole.maximize();
+        expect(whole.element.getAttribute('role')).toBe('dialog');
+        whole.restore();
+        expect(whole.element.getAttribute('role')).toBeNull();
+        whole.destroy();
+        const panel = mount({ loadPreviousSession: false, maximizable: 'panel' });
+        panel.open();
+        panel.maximize();
+        expect(panel.element.hasAttribute('maximized')).toBe(true);
+        expect(panel.element.getAttribute('role')).toBeNull();
     });
 
     it('speaks a language aparté does not ship, from the locale it is given', async () => {
@@ -181,7 +296,7 @@ describe('createChat: the widget, as n8n draws it', () => {
         const { APARTE_DEFAULT_LOCALE } = await import('@aparte/core');
         const chat = mount({ loadPreviousSession: false, defaultLanguage: 'nl', locale: { ...APARTE_DEFAULT_LOCALE, tag: 'nl', launcherOpen: 'Chat openen' }, i18n: { nl: { title: 'Hallo!' } } });
         expect(chat.element.querySelector('.aparte-launcher__button')?.getAttribute('aria-label')).toBe('Chat openen');
-        expect(chat.element.querySelector('.aparte-n8n__title')?.textContent).toBe('Hallo!');
+        expect(titleOf(chat)).toBe('Hallo!');
         // Its other words fall back to English.
         expect(chat.element.querySelector('aparte-composer')?.getAttribute('placeholder')).toBe('Type your question..');
     });
@@ -189,7 +304,7 @@ describe('createChat: the widget, as n8n draws it', () => {
     it('loads the language it ships for the tag alone — German for de-AT — and switches the chat to it', async () => {
         n8n();
         const chat = mount({ loadPreviousSession: false, defaultLanguage: 'de-AT' });
-        expect(chat.element.querySelector('.aparte-n8n__title')?.textContent).toBe('Hallo! 👋');
+        expect(titleOf(chat)).toBe('Hallo! 👋');
         expect(contents(chat)[1]).toEqual(['assistant', 'Ich heiße Nathan. Wie kann ich dir heute helfen?']);
         await vi.waitFor(() => expect(chat.element.querySelector('.aparte-launcher__button')?.getAttribute('aria-label')).toBe('Chat öffnen'));
         expect(chat.element.getAttribute('lang')).toBe('de-AT');
@@ -200,11 +315,11 @@ describe('createChat: the widget, as n8n draws it', () => {
         n8n();
         const arabic = mount({ loadPreviousSession: false, defaultLanguage: 'ar', i18n: { ar: { title: 'مرحبا' } } });
         expect(arabic.element.getAttribute('dir')).toBe('rtl');
-        expect(arabic.element.querySelector('.aparte-n8n__title')?.textContent).toBe('مرحبا');
+        expect(titleOf(arabic)).toBe('مرحبا');
         // navigator.language's region tag finds the page's words under the language alone.
         const hebrew = mount({ loadPreviousSession: false, defaultLanguage: 'he-IL', i18n: { he: { title: 'שלום' } } });
         expect(hebrew.element.getAttribute('dir')).toBe('rtl');
-        expect(hebrew.element.querySelector('.aparte-n8n__title')?.textContent).toBe('שלום');
+        expect(titleOf(hebrew)).toBe('שלום');
         // A right-to-left tag with no words written for it reads in English, left to right.
         expect(mount({ loadPreviousSession: false, defaultLanguage: 'ar-SA' }).element.hasAttribute('dir')).toBe(false);
         expect(mount({ loadPreviousSession: false, defaultLanguage: 'hr' }).element.hasAttribute('dir')).toBe(false);
@@ -215,7 +330,8 @@ describe('createChat: the widget, as n8n draws it', () => {
     it('leaves the subtitle out when it is empty, shows a footer when there is one, and shows the given first messages', () => {
         n8n();
         const chat = mount({ loadPreviousSession: false, i18n: { en: { subtitle: '', footer: 'Answers by our assistant.' } }, initialMessages: ['Hello!'] });
-        expect(chat.element.querySelector('.aparte-n8n__subtitle')).toBeNull();
+        expect(subtitleOf(chat)).toBeNull();
+        expect(chat.element.hasAttribute('subheading')).toBe(false);
         expect(chat.element.querySelector('.aparte-n8n__footer')?.textContent).toBe('Answers by our assistant.');
         expect(contents(chat)).toEqual([['assistant', 'Hello!']]);
     });

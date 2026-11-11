@@ -46,9 +46,9 @@ To keep one version until you change it, load the module and its stylesheet by t
 instead:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.2/dist/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.1.0/dist/style.css">
 <script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.0.2/dist/cdn/n8n-chat.js';
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@aparte/n8n-chat@1.1.0/dist/cdn/n8n-chat.js';
 
   createChat({ webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat' });
 </script>
@@ -114,7 +114,8 @@ memory on the agent only, n8n answers that request with an error.
 | `webhookConfig` | `headers` sent with every request, read each time (a refreshed token is sent); `method` is accepted, every request is a POST | `{}` |
 | `target` | where it mounts: an element, or a selector | `'#n8n-chat'` |
 | `mode` | `'window'` (a button in the corner) or `'embedded'` (a block in the page, filling its target; `'fullscreen'`, `@n8n/chat`'s name for it, works too) | `'window'` |
-| `showWindowCloseButton` | a ✕ in the header, in window mode | `false` |
+| `showWindowCloseButton` | a ✕ in the [header](#the-windows-header), in window mode (there anyway while the chat fills a phone's screen or is maximized) | `false` |
+| `maximizable` | a button in the [header](#the-windows-header) that maximizes the chat: `true` to the whole window, `'panel'` to a full-height panel beside the page | `false` |
 | `showWelcomeScreen` | a screen with a "New Conversation" button first | `false` |
 | `loadPreviousSession` | keep the session in the browser and show its earlier messages | `true` |
 | `sessionId` | use this session instead of the stored one | — |
@@ -140,6 +141,25 @@ memory on the agent only, n8n answers that request with an error.
 | `fetch` | the `fetch` every request goes through | the global one |
 | `enableStreaming`, `theme` | accepted for compatibility | — |
 
+## The window's header
+
+In window mode the chat opens under a header: n8n's title and the line under it (`title` and
+`subtitle` in `i18n`), in n8n's colors (`--chat--header--background`, `--chat--header--color`).
+The ✕ is there with `showWindowCloseButton`, and always while the chat fills a phone's screen or
+is maximized, where the button in the corner is not. A button that maximizes the chat is
+yours to add:
+
+```js
+createChat({
+  webhookUrl: 'https://your-n8n.example.com/webhook/<id>/chat',
+  maximizable: true, // the whole window; 'panel' for a full-height panel that keeps the page in view
+});
+```
+
+The same button, or Escape, brings it back, and `chat.maximize()` and `chat.restore()` do it from
+your page. Embedded in the page (`mode: 'embedded'`), the chat keeps its own header, with nothing to
+maximize.
+
 ## The handle
 
 `createChat()` returns what your page drives it with:
@@ -148,6 +168,7 @@ memory on the agent only, n8n answers that request with an error.
 const chat = createChat({ webhookUrl });
 
 chat.open();                     // open the window (close, toggle too)
+chat.maximize();                 // maximize it, restore() brings it back (give `maximizable` for the button)
 chat.send('Where is my order?'); // as the visitor; waits for an answer on its way
 chat.reset();                    // a new conversation, in a new session
 chat.setDisabled(true);          // block the input, or let the visitor type again

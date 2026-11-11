@@ -24,6 +24,8 @@
     ...(params.has('accept') ? { allowedFilesMimeTypes: params.get('accept') } : {}),
     enableMessageActions: !params.has('noactions'),
     disabled: params.has('disabled'),
+    showWindowCloseButton: params.has('close'),
+    ...(params.has('maximize') ? { maximizable: params.get('maximize') === 'panel' ? 'panel' : true } : {}),
     ...(params.has('history') ? {
       loadPreviousSession: false,
       messageHistory: [
