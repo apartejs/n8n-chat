@@ -99,7 +99,8 @@ jobs:
           pnpm test:run
           pnpm build
           grep -q "@aparte/n8n-chat@$VERSION/dist/cdn/n8n-chat.js" dist/cdn/latest.js
-          npm publish --provenance --access public
+          # Verbose: when npm's trusted publishing refuses the run, the registry's reason is only logged at this level.
+          npm publish --provenance --access public --loglevel verbose
           if ! git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
             git tag "v$VERSION"
             git push origin "v$VERSION"
