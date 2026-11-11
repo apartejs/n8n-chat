@@ -71,6 +71,7 @@
   --aparte-n8n-toggle-bg: var(--chat--toggle--background, var(--chat--color--primary, var(--chat--color--secondary, #e74266)));
   --aparte-n8n-toggle-hover-bg: var(--chat--toggle--hover--background, var(--chat--color--primary-shade-50, color-mix(in oklab, var(--aparte-n8n-toggle-bg) 88%, #000)));
   --aparte-n8n-toggle-color: var(--chat--toggle--color, var(--chat--color-white, #fff));
+  --aparte-n8n-toggle-height: var(--chat--toggle--height, var(--chat--toggle--size, 64px));
 }
 
 /*
@@ -165,7 +166,10 @@
   border-radius: 0;
 }
 
-.aparte-n8n__header {
+/* The header: the card's own in the page, the launcher's over the window — both in n8n's look,
+   which the launcher's (aparté's app header) takes from here. */
+.aparte-n8n__header,
+.aparte-n8n > .aparte-launcher__header {
   /* The focus ring in the header's own ink: core's would be lost on its navy. */
   --aparte-border-focus: var(--aparte-n8n-header-color);
   display: flex;
@@ -179,33 +183,63 @@
   flex: none;
 }
 
+/* Over the window, the header is the window's top: its edge is the window's border, which
+   n8n's header sat inside. */
+.aparte-n8n > .aparte-launcher__header {
+  border: var(--chat--window--border, 1px solid var(--aparte-border));
+  border-block-start: var(--chat--header--border-top, var(--chat--window--border, 1px solid var(--aparte-border)));
+  border-block-end: var(--chat--header--border-bottom, none);
+}
+
+/* Covering the window — a phone, or maximized — core's header keeps clear of the notch with
+   aparté's small padding, which left n8n's 2em title against the top edge: n8n's padding,
+   the notch added. And the page's bottom border, which core's sheet sets to 1px. */
+.aparte-n8n[open]:is([data-sheet], [maximized]) > .aparte-launcher__header {
+  padding-block-start: calc(var(--chat--spacing, 1rem) + env(safe-area-inset-top, 0px));
+  border-block-end: var(--chat--header--border-bottom, none);
+}
+
+/* And the card under it starts where the header ends: no second edge, no corners. */
+.aparte-n8n:has(> .aparte-launcher__header) > .aparte-n8n__window {
+  border-block-start: 0;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+
 .aparte-n8n__heading {
   flex: 1 1 auto;
   min-inline-size: 0;
 }
 
-.aparte-n8n__title {
+/* n8n's title wraps where aparté's header truncates it. */
+.aparte-n8n__title,
+.aparte-n8n .aparte-launcher__title {
   margin: 0;
   font-size: var(--chat--heading--font-size, 2em);
   font-weight: 700;
   line-height: 1.2;
+  white-space: normal;
 }
 
-.aparte-n8n__subtitle {
+.aparte-n8n__subtitle,
+.aparte-n8n .aparte-launcher__subheading {
   margin: 0.5rem 0 0;
   font-size: var(--chat--subtitle--font-size, inherit);
   line-height: var(--chat--subtitle--line-height, 1.8);
   opacity: 0.9;
+  white-space: normal;
 }
 
-.aparte-n8n__close {
-  --aparte-btn-intent: var(--aparte-n8n-header-color);
-  --aparte-btn-intent-ink: var(--aparte-n8n-header-color);
-  flex: none;
-}
-
-.aparte-n8n__close:hover {
+/* The header's buttons — maximize and the ✕ — in the header's ink, n8n's close color on hover. */
+.aparte-n8n > .aparte-launcher__header .aparte-btn:hover {
   --aparte-btn-intent-ink: var(--chat--close--button--color-hover, var(--chat--color--primary, #e74266));
+}
+
+/* n8n's widget draws no ✕ unless `showWindowCloseButton`: the button in the corner closes the
+   chat. While the chat fills a phone's screen or is maximized (a panel too), that button is
+   gone and the ✕ is the way out, so it stays. */
+.aparte-n8n:not([data-n8n-close-button], [data-sheet], [maximized]) > .aparte-launcher__header .aparte-launcher__close {
+  display: none;
 }
 
 .aparte-n8n__chat {
@@ -377,8 +411,24 @@
   --aparte-btn-bg-toggled: var(--aparte-n8n-toggle-bg);
   --aparte-btn-color-toggled: var(--aparte-n8n-toggle-color);
   inline-size: var(--chat--toggle--width, var(--chat--toggle--size, 64px));
-  block-size: var(--chat--toggle--height, var(--chat--toggle--size, 64px));
+  block-size: var(--aparte-n8n-toggle-height);
   border-radius: var(--chat--toggle--border-radius, 50%);
+}
+
+/* Under its header the launcher holds the window, the gap and the button, and draws the
+   window's shadow above the gap. Core counts the button by `--aparte-btn-size-lg`, aparté's
+   large button; n8n's is larger, and is declared on the button alone, since the chat's own
+   large buttons (the scroll to the end) keep aparté's size. So the count is n8n's here:
+   without it the window came out 28px short of `--chat--window--height`. */
+.aparte-n8n[open]:not([data-sheet], [maximized]):has(> .aparte-launcher__header) {
+  block-size: min(
+    calc(var(--aparte-launcher-height) + var(--aparte-launcher-gap) + var(--aparte-n8n-toggle-height)),
+    calc(100dvh - 2 * var(--aparte-launcher-offset))
+  );
+}
+
+.aparte-n8n[open]:not([data-sheet], [maximized]):has(> .aparte-launcher__header)::before {
+  inset-block-end: calc(var(--aparte-launcher-gap) + var(--aparte-n8n-toggle-height));
 }
 
 /* The button floats over a page that is not ours: a ring in two tones, light then dark,
@@ -392,11 +442,13 @@
 /* A short window — a phone held sideways, a page zoomed in: the header gives the room
    back to the conversation. */
 @media (max-height: 34rem) {
-  .aparte-n8n__title {
+  .aparte-n8n__title,
+  .aparte-n8n .aparte-launcher__title {
     font-size: 1.25em;
   }
 
-  .aparte-n8n__subtitle {
+  .aparte-n8n__subtitle,
+  .aparte-n8n .aparte-launcher__subheading {
     display: none;
   }
 }
