@@ -779,6 +779,24 @@ describe('createChat: on a page with other chats, and while an answer is on its 
         warn.mockRestore();
     });
 
+    it('sends only the new message after a failed one, so n8n answers what was just asked', async () => {
+        let calls = 0;
+        const sent: Array<Record<string, unknown>> = [];
+        vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
+            sent.push(JSON.parse(init.body as string) as Record<string, unknown>);
+            if (++calls === 1) throw new TypeError('Failed to fetch');
+            return new Response(stream('Here you go.'), { status: 200, headers: { 'content-type': 'application/json; charset=utf-8' } });
+        }));
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const chat = mount({ loadPreviousSession: false });
+        chat.send('first');
+        await vi.waitFor(() => expect(chat.element.querySelector('.aparte-segment-error')).not.toBeNull());
+        chat.send('second');
+        await vi.waitFor(() => expect(sent).toHaveLength(2));
+        expect(sent[1]!['chatInput']).toBe('second');
+        warn.mockRestore();
+    });
+
     it('keeps a finished answer finished when afterMessageSent throws, and says so on the console', async () => {
         n8n({ reply: 'All good.' });
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

@@ -392,6 +392,9 @@ export function createChat(options: ChatOptions): Chat {
 
     // ── The config: this widget's own, so nothing on the page's other chats changes ───────
     const config = new AparteConfig();
+    // A link to the page's own site follows in the page, as on any website; a link to another
+    // site opens in a new tab. aparté's own default opens every link in a new tab.
+    config.setLinkTarget('external-only');
     // Every picture an answer names loads, as in n8n's widget, unless the page names its
     // origins (`images`). Set before `setup`, which can set its own.
     config.setImagePolicy(imagePolicyOf(options.images));
