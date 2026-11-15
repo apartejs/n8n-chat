@@ -275,7 +275,9 @@ export interface Chat {
     unmount(): void;
 }
 
-const STORAGE_KEY = 'n8n-chat/sessionId';
+/** How the core joins a failed message to the next one in the history it sends. */
+const JOIN = '\n\n';
+const STORAGE_KEY ='n8n-chat/sessionId';
 
 /** The languages written right to left, by their primary tag: Arabic, Hebrew, Persian, Urdu… */
 const RIGHT_TO_LEFT = /^(ar|arc|ckb|dv|fa|he|ku-arab|ps|sd|ug|ur|yi)(-|$)/i;
@@ -731,8 +733,16 @@ export function createChat(options: ChatOptions): Chat {
         runSession = session;
         let reply = '';
         let done = false;
+        // After a failed turn the core joins the failed message to this one ("first" + blank line +
+        // "second"); n8n, which keeps its own memory, must receive what was just typed, as n8n's widget sends it.
+        const messages = (opts.baseRequest as { messages: Array<{ role: string; content: unknown }> }).messages;
+        let at = messages.length - 1;
+        while (at >= 0 && messages[at]!.role !== 'user') at--;
+        const joined = at >= 0 && typeof messages[at]!.content === 'string' && (messages[at]!.content as string).endsWith(JOIN + message);
+        const baseRequest = joined ? { ...opts.baseRequest, messages: messages.map((m, i) => (i === at ? { ...m, content: message } : m)) } as typeof opts.baseRequest : opts.baseRequest;
         const result = await runner({
             ...opts,
+            baseRequest,
             emitter: (event) => {
                 if (event.type === 'text-delta') reply += event.delta;
                 if (event.type === 'run-done') done = true;
