@@ -9,23 +9,23 @@ importers:
   .:
     dependencies:
       '@aparte/core':
-        specifier: 1.15.0
-        version: 1.15.0
+        specifier: 1.15.1
+        version: 1.15.1
       '@aparte/locales':
-        specifier: 1.15.0
-        version: 1.15.0(@aparte/core@1.15.0)
+        specifier: 1.15.1
+        version: 1.15.1(@aparte/core@1.15.1)
       '@aparte/plugin-cards':
-        specifier: 1.15.0
-        version: 1.15.0(@aparte/core@1.15.0)
+        specifier: 1.15.1
+        version: 1.15.1(@aparte/core@1.15.1)
       '@aparte/plugin-marked':
-        specifier: 1.15.0
-        version: 1.15.0(@aparte/core@1.15.0)(marked@18.0.6)
+        specifier: 1.15.1
+        version: 1.15.1(@aparte/core@1.15.1)(marked@18.0.6)
       '@aparte/plugin-shiki':
-        specifier: 1.15.0
-        version: 1.15.0(@aparte/core@1.15.0)(shiki@4.5.0)
+        specifier: 1.15.1
+        version: 1.15.1(@aparte/core@1.15.1)(shiki@4.5.0)
       '@aparte/runner-n8n':
-        specifier: 1.15.0
-        version: 1.15.0(@aparte/core@1.15.0)
+        specifier: 1.15.1
+        version: 1.15.1(@aparte/core@1.15.1)
       '@shikijs/langs':
         specifier: 4.5.0
         version: 4.5.0
@@ -60,12 +60,12 @@ importers:
 
 packages:
 
-  '@aparte/core@1.15.0':
-    resolution: {integrity: sha512-UhNvCAD7Mi3cM75uWmSqs63dNnw9+6pub8Oc/CW6z+p8I2Y0mM+NzUpQ6uX83Oi6lUqz2ob1P4v/BzImo6O3ww==}
+  '@aparte/core@1.15.1':
+    resolution: {integrity: sha512-wPO9C3L0IJg4+/vIdnhVkMjjsay74jY84Js4SpgVo9IoLFt4YtcNsdRtRpp6O4GSYHwibIHDRuHk5RpHKLiCNg==}
     engines: {node: '>=18'}
 
-  '@aparte/engine@1.15.0':
-    resolution: {integrity: sha512-l6MiT8DpjznONWK9jE+xGQLOy/UojuHlkQmOzPI5KPTEu8zgc3tBQunP7jVioz5Xzw4YvHzcBj9ujYoe2xkE9w==}
+  '@aparte/engine@1.15.1':
+    resolution: {integrity: sha512-LHUHt6pObRW933E4DUo2HFXg5qj4GUXME9qZrwboj3tfUTQOFGfKQ6NnbkbCbAvtk0LABfMCjnAEIkWXu/WgQg==}
     engines: {node: '>=18'}
     peerDependencies:
       '@aparte/core': '*'
@@ -73,37 +73,37 @@ packages:
       '@aparte/core':
         optional: true
 
-  '@aparte/locales@1.15.0':
-    resolution: {integrity: sha512-1LZGQks/DgXxNmpJqnXOq+WzQsJyc8w8a3xUV/FBGn4KFTB6E4poLF1d/tBhTFhszdVWzBcJNH2ySywdn2th9A==}
+  '@aparte/locales@1.15.1':
+    resolution: {integrity: sha512-yqJ58VCw1x4NuTFSH3VpbxV5mJxmn0d7ym1HrUmFxN2wUWcECwEFPpFYXjAyWVWMQJ0EXCAvBmCvd5OeHQHKUg==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=1.15.0 <2.0.0'
+      '@aparte/core': '>=1.15.1 <2.0.0'
 
-  '@aparte/plugin-cards@1.15.0':
-    resolution: {integrity: sha512-Snp9u8/NhYBB6qit0m5JAxZgjmjyYlysGPrplBxJbGy4xZ0Kd1Z1RYpuCqWXlH+yNnkAkexHNXZfjCewE6zdQA==}
+  '@aparte/plugin-cards@1.15.1':
+    resolution: {integrity: sha512-5Y0jGhktLJUgZC8aZ0gS82kpXGASKWwiBALu9sJeY8wVKvY46M337zD8l3VWeA2OnTOYPXGVHku9X4MtWx8FTw==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=1.15.0 <2.0.0'
+      '@aparte/core': '>=1.15.1 <2.0.0'
 
-  '@aparte/plugin-marked@1.15.0':
-    resolution: {integrity: sha512-Cjz2mWReJNNgVwo3W3s1yWK2G2PHBJu4iqMDyA+OOpnWXG+naNzZ74dFfw+tQhsV7z2Tke1XQCo7nvrP2ooJGA==}
+  '@aparte/plugin-marked@1.15.1':
+    resolution: {integrity: sha512-3njk72R33c/lUg9jBMmXSyX0nOCOPZ8j4bf6OuFv6/GJuMPxUpO1nRQLjWTm5oESNWhXvZKXX7oMrLtuqiPR1Q==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=1.15.0 <2.0.0'
+      '@aparte/core': '>=1.15.1 <2.0.0'
       marked: ^18.0.0
 
-  '@aparte/plugin-shiki@1.15.0':
-    resolution: {integrity: sha512-xY/AaWMpYl2ocC24vTGQOyeETWotTVhBLlAWpVrh/O5twWLl+ev4oVWQei6xfrpHXtC4QnR7bxN51oKwHTxxzA==}
+  '@aparte/plugin-shiki@1.15.1':
+    resolution: {integrity: sha512-9TZTczaSjvkpRRjo+NFe7kZY8McnMrma5/nDF6SnpTHllyYD3EzscqrGLezwrBoPE+2l2AnrxdjNIJbMa13QvA==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=1.15.0 <2.0.0'
+      '@aparte/core': '>=1.15.1 <2.0.0'
       shiki: ^4.0.0
 
-  '@aparte/runner-n8n@1.15.0':
-    resolution: {integrity: sha512-i66k2apQOkxCxnZ0LBgsPKc0RmtQ7nRziInBRf8RPD66F2gN+0vJW1posown/yvXiQIaO5FPmUm2JpbTetX1vQ==}
+  '@aparte/runner-n8n@1.15.1':
+    resolution: {integrity: sha512-zEodnlfdiXpX7UKUpkuz3Ta78SlSbOdWuRzDqtSNoih+CkNnoveiyhuA/vElqASHMX5dOfBCOa8IPX29sVL9HA==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=1.15.0 <2.0.0'
+      '@aparte/core': '>=1.15.1 <2.0.0'
 
   '@esbuild/aix-ppc64@0.21.5':
     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}
@@ -1210,36 +1210,36 @@ packages:
 
 snapshots:
 
-  '@aparte/core@1.15.0':
+  '@aparte/core@1.15.1':
     dependencies:
-      '@aparte/engine': 1.15.0(@aparte/core@1.15.0)
+      '@aparte/engine': 1.15.1(@aparte/core@1.15.1)
 
-  '@aparte/engine@1.15.0(@aparte/core@1.15.0)':
+  '@aparte/engine@1.15.1(@aparte/core@1.15.1)':
     optionalDependencies:
-      '@aparte/core': 1.15.0
+      '@aparte/core': 1.15.1
 
-  '@aparte/locales@1.15.0(@aparte/core@1.15.0)':
+  '@aparte/locales@1.15.1(@aparte/core@1.15.1)':
     dependencies:
-      '@aparte/core': 1.15.0
+      '@aparte/core': 1.15.1
 
-  '@aparte/plugin-cards@1.15.0(@aparte/core@1.15.0)':
+  '@aparte/plugin-cards@1.15.1(@aparte/core@1.15.1)':
     dependencies:
-      '@aparte/core': 1.15.0
+      '@aparte/core': 1.15.1
 
-  '@aparte/plugin-marked@1.15.0(@aparte/core@1.15.0)(marked@18.0.6)':
+  '@aparte/plugin-marked@1.15.1(@aparte/core@1.15.1)(marked@18.0.6)':
     dependencies:
-      '@aparte/core': 1.15.0
+      '@aparte/core': 1.15.1
       marked: 18.0.6
       remend: 1.4.0
 
-  '@aparte/plugin-shiki@1.15.0(@aparte/core@1.15.0)(shiki@4.5.0)':
+  '@aparte/plugin-shiki@1.15.1(@aparte/core@1.15.1)(shiki@4.5.0)':
     dependencies:
-      '@aparte/core': 1.15.0
+      '@aparte/core': 1.15.1
       shiki: 4.5.0
 
-  '@aparte/runner-n8n@1.15.0(@aparte/core@1.15.0)':
+  '@aparte/runner-n8n@1.15.1(@aparte/core@1.15.1)':
     dependencies:
-      '@aparte/core': 1.15.0
+      '@aparte/core': 1.15.1
 
   '@esbuild/aix-ppc64@0.21.5':
     optional: true
