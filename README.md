@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/apartejs/n8n-chat/main/docs/logo-dark.png">
+  <img src="https://raw.githubusercontent.com/apartejs/n8n-chat/main/docs/logo-light.png" width="96" height="96" alt="aparté chat for n8n">
+</picture>
+
 # @aparte/n8n-chat
 
 **n8n's chat widget, drawn by [aparté](https://apartejs.dev).** `createChat()` takes
